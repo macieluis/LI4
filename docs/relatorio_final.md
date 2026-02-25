@@ -73,7 +73,7 @@ Este projecto tem como objetivo eliminar estes problemas, através de um sistema
 
 ### 1.4 Metodologia
 
-O projeto seguiu a metodologia **Scrum** com sprints de 1 semana, com o Gestor da Cadeia (cliente) como Product Owner. Foram realizadas três reuniões formais (ver Atas em Anexo A) e um questionário a funcionários de POS (Anexo B).
+O projeto seguiu a metodologia **Waterfall** (Cascata), com fases sequenciais e formalmente delimitadas: Requisitos → Design → Implementação → Testes. Esta abordagem foi adotada devido à natureza académica do projeto e à estabilidade dos requisitos definidos desde o início. Foram realizadas três reuniões formais com o cliente (ver Atas em Anexo A) e um questionário a funcionários de POS (Anexo B).
 
 ---
 
@@ -394,7 +394,7 @@ Foram realizados testes funcionais end-to-end para todos os fluxos principais:
 
 O SGCLC foi desenvolvido com sucesso, cumprindo os objetivos definidos no enunciado e validados com o cliente. O sistema oferece uma solução completa e integrada para a gestão de uma cadeia de lojas de conveniência, substituindo os processos manuais por uma plataforma web moderna, segura e escalável.
 
-A adoção da arquitetura 3-Tier com o padrão Repository e Dependency Injection garante uma arquitetura limpa, testável e manutenível. A metodologia Scrum permitiu entregas incrementais validadas com o cliente em cada sprint.
+A adoção da arquitetura 3-Tier com o padrão Repository e Dependency Injection garante uma arquitetura limpa, testável e manutenível. A metodologia Waterfall permitiu uma definição clara e completa de requisitos antes do início do desenvolvimento, garantindo rastreabilidade entre as fases do projeto.
 
 Os pontos fortes do projeto são:
 - Cobertura completa dos 42 RFs e 15 RNFs

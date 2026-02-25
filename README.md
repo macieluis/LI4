@@ -230,7 +230,7 @@ Toda a documentação está em `docs/`:
 | `etapa2/wireframes.md` | 8 wireframes com rastreabilidade RF ↔ Ecrã |
 | `etapa2/dicionario_dados.md` | Dicionário de dados + SQL DDL completo |
 | `etapa2/diagramas_comportamentais.md` | Máquinas de estado + diagramas de sequência |
-| `etapa3/scrum.md` | Product Backlog (23 US, 104 SP) + 4 Sprints |
+| `etapa3/plano_trabalho.md` | Plano de trabalho Waterfall (fases, equipa, rastreabilidade) |
 | `etapa4/testes.md` | Resultados dos testes + métricas ISO/IEC 25010 |
 | `relatorio_final.md` | **Relatório Final** (todas as secções) |
 

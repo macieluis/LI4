@@ -379,7 +379,7 @@ sequenceDiagram
 └── docs/
     ├── etapa1/  SRS, requisitos, user_stories, use_cases, atas
     ├── etapa2/  architecture, wireframes, dicionario_dados, diagramas
-    ├── etapa3/  scrum.md
+    ├── etapa3/  plano_trabalho.md
     └── etapa4/  testes.md
 ```
 
