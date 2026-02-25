@@ -1,0 +1,119 @@
+@page "/faturas"
+@using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IFaturaService FaturaSvc
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Faturas – SGCLC</PageTitle>
+
+@if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="bi bi-receipt me-2 text-primary"></i>Faturas</h1>
+        <p class="text-muted mb-0">Gestão de faturas emitidas</p>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-medium small">De</label>
+                <input type="date" class="form-control" @bind="dataInicio" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-medium small">Até</label>
+                <input type="date" class="form-control" @bind="dataFim" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" @onclick="Pesquisar">
+                    <i class="bi bi-search me-1"></i>Pesquisar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (a_carregar)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary"></div>
+    </div>
+}
+else if (faturas is not null && faturas.Any())
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nº Fatura</th>
+                        <th>Data Emissão</th>
+                        <th>Cliente</th>
+                        <th class="text-end">Total (€)</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in faturas)
+                    {
+                        <tr>
+                            <td class="fw-medium">@f.Numero</td>
+                            <td>@f.DataEmissao.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="small text-muted">@(string.IsNullOrEmpty(f.NomeCliente) ? "Consumidor Final" : f.NomeCliente)</td>
+                            <td class="text-end fw-semibold">€@f.Total.ToString("N2")</td>
+                            <td>
+                                <span class="badge @(f.Estado == "Paga" ? "bg-success" : f.Estado == "Anulada" ? "bg-danger" : "bg-warning text-dark")">
+                                    @f.Estado
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="text-muted small mt-2">@faturas.Count() fatura(s) encontrada(s)</div>
+}
+else
+{
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
+        Nenhuma fatura encontrada para o período selecionado.
+    </div>
+}
+
+@code {
+    private IEnumerable<FaturaDto>? faturas;
+    private bool a_carregar;
+    private DateTime dataInicio = DateTime.Today.AddDays(-30);
+    private DateTime dataFim = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) return;
+        await Pesquisar();
+    }
+
+    private async Task Pesquisar()
+    {
+        a_carregar = true;
+        try
+        {
+            // GestorCadeia não tem LojaId — mostra lista vazia (faturas são por loja)
+            if (Session.LojaId.HasValue)
+                faturas = await FaturaSvc.GetByLojaAsync(Session.LojaId.Value, dataInicio, dataFim);
+            else
+                faturas = Enumerable.Empty<FaturaDto>();
+        }
+        catch
+        {
+            faturas = Enumerable.Empty<FaturaDto>();
+        }
+        a_carregar = false;
+    }
+}

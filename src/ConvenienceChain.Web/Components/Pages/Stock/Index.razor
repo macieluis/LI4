@@ -1,0 +1,199 @@
+@page "/stock"
+@using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IStockService StockSvc
+@inject SessionService Session
+
+<PageTitle>Gestão de Stock – SGCLC</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-boxes me-2 text-primary"></i>Gestão de Stock</h1>
+        <p class="text-muted mb-0">@(Session.IsGestorCadeia ? "Todas as lojas" : $"Loja: Id {Session.LojaId}")</p>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" @onclick="ExportarCsv">
+        <i class="bi bi-download me-1"></i>Exportar CSV
+    </button>
+</div>
+
+<!-- Alertas globais -->
+@if (alertas.Any())
+{
+    <div class="alert stock-alert mb-3">
+        <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>@alertas.Count() produto(s) abaixo do stock mínimo!</strong>
+    </div>
+}
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input class="form-control form-control-sm" placeholder="Pesquisar produto..." @bind="filtroNome" @oninput="Filtrar" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" @bind="filtroAlerta" @bind:after="Filtrar">
+                    <option value="">Todos</option>
+                    <option value="alerta">Em alerta</option>
+                    <option value="ok">Stock OK</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de stock -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        @if (a_carregar)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th class="text-center">Qtd. Atual</th>
+                            <th class="text-center">Stock Mín.</th>
+                            <th class="text-end">Preço Venda</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in stockFiltrado)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-medium small">@s.NomeProduto</div>
+                                    <div class="text-muted" style="font-size:.72rem">@s.CodigoProduto</div>
+                                </td>
+                                <td class="small text-muted">@s.Categoria</td>
+                                <td class="text-center fw-semibold @(s.EmAlerta ? "text-danger" : "text-success")">@s.Quantidade.ToString("0.###")</td>
+                                <td class="text-center text-muted small">@s.StockMinimo.ToString("0.###")</td>
+                                <td class="text-end small">€@((s.PrecoVendaLocal ?? s.PrecoBaseVenda).ToString("N2"))</td>
+                                <td class="text-center">
+                                    @if (s.EmAlerta)
+                                    {
+                                        <span class="badge badge-pendente px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i>Alerta</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-rececionada px-2 py-1"><i class="bi bi-check-circle me-1"></i>OK</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => AbrirAjuste(s)" title="Ajuste Manual">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal: Ajuste de Stock -->
+@if (produtoAjuste is not null)
+{
+    <div class="modal fade show d-block" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2 text-primary"></i>Ajuste de Stock</h5>
+                    <button class="btn-close" @onclick="() => produtoAjuste = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-semibold">@produtoAjuste.NomeProduto</p>
+                    <p class="text-muted small">Quantidade atual: <strong>@produtoAjuste.Quantidade.ToString("0.###")</strong></p>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Variação <span class="text-muted">(+ entrada / - saída)</span></label>
+                        <input type="number" class="form-control" step="0.001" @bind="ajusteVariacao" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Motivo <span class="text-danger">*</span></label>
+                        <input class="form-control" placeholder="Ex: Quebra, Inventário, Devolução..." @bind="ajusteMotivo" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(erroAjuste))
+                    {
+                        <div class="alert alert-danger py-2 small">@erroAjuste</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => produtoAjuste = null">Cancelar</button>
+                    <button class="btn btn-primary btn-sm" @onclick="ConfirmarAjuste" disabled="@a_ajuste">
+                        @if (a_ajuste) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        Confirmar Ajuste
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<StockDto> todos = new();
+    private List<StockDto> stockFiltrado = new();
+    private IEnumerable<StockAlertaDto> alertas = Enumerable.Empty<StockAlertaDto>();
+    private string filtroNome = "", filtroAlerta = "";
+    private bool a_carregar = true;
+
+    private StockDto? produtoAjuste;
+    private decimal ajusteVariacao;
+    private string ajusteMotivo = "";
+    private bool a_ajuste;
+    private string? erroAjuste;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarStock();
+        a_carregar = false;
+    }
+
+    private async Task CarregarStock()
+    {
+        if (Session.LojaId.HasValue)
+        {
+            todos = (await StockSvc.GetStockLojaAsync(Session.LojaId.Value)).ToList();
+            alertas = await StockSvc.GetAlertasAsync(Session.LojaId.Value);
+        }
+        stockFiltrado = todos;
+    }
+
+    private void Filtrar()
+    {
+        stockFiltrado = todos.Where(s =>
+            (string.IsNullOrEmpty(filtroNome) || s.NomeProduto.Contains(filtroNome, StringComparison.OrdinalIgnoreCase)) &&
+            filtroAlerta switch { "alerta" => s.EmAlerta, "ok" => !s.EmAlerta, _ => true }
+        ).ToList();
+    }
+
+    private void AbrirAjuste(StockDto s) { produtoAjuste = s; ajusteVariacao = 0; ajusteMotivo = ""; erroAjuste = null; }
+
+    private async Task ConfirmarAjuste()
+    {
+        if (string.IsNullOrWhiteSpace(ajusteMotivo)) { erroAjuste = "O motivo é obrigatório."; return; }
+        a_ajuste = true; erroAjuste = null;
+        try
+        {
+            await StockSvc.AjustarStockAsync(Session.LojaId!.Value, produtoAjuste!.ProdutoId, ajusteVariacao, ajusteMotivo, Session.UserId!);
+            produtoAjuste = null;
+            await CarregarStock();
+        }
+        catch (Exception ex) { erroAjuste = ex.Message; }
+        finally { a_ajuste = false; }
+    }
+
+    private void ExportarCsv() { /* TODO: gerar CSV */ }
+}

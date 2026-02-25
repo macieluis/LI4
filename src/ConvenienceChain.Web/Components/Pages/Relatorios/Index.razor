@@ -1,0 +1,192 @@
+@page "/relatorios"
+@using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IReportService ReportSvc
+@inject SessionService Session
+
+<PageTitle>Relatórios de Vendas – SGCLC</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-bar-chart-line me-2 text-primary"></i>Relatórios de Vendas</h1>
+    <p class="text-muted mb-0">Análise de vendas por período, loja e categoria</p>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            @if (Session.IsGestorCadeia)
+            {
+                <div class="col-md-3">
+                    <label class="form-label fw-medium small">Loja</label>
+                    <select class="form-select" @bind="filtroLojaId">
+                        <option value="0">Todas as lojas</option>
+                        @foreach (var l in lojas)
+                        {
+                            <option value="@l.Id">@l.Nome</option>
+                        }
+                    </select>
+                </div>
+            }
+            <div class="col-md-2">
+                <label class="form-label fw-medium small">Data Início</label>
+                <input type="date" class="form-control" @bind="dataInicio" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-medium small">Data Fim</label>
+                <input type="date" class="form-control" @bind="dataFim" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-medium small">Período Rápido</label>
+                <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-outline-primary" @onclick="() => SetPeriodo(7)">7d</button>
+                    <button class="btn btn-sm btn-outline-primary" @onclick="() => SetPeriodo(30)">30d</button>
+                    <button class="btn btn-sm btn-outline-primary" @onclick="() => SetPeriodo(90)">3m</button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" @onclick="GerarRelatorio" disabled="@a_carregar">
+                    @if (a_carregar) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    <i class="bi bi-bar-chart me-1"></i>Gerar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (relatorio is not null)
+{
+    <!-- KPIs do relatório -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card kpi-card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="kpi-label">Total Vendas</div>
+                    <div class="kpi-value text-success">€@relatorio.TotalVendas.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="kpi-label">Transações</div>
+                    <div class="kpi-value text-primary">@relatorio.NrTransacoes</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="kpi-label">Ticket Médio</div>
+                    <div class="kpi-value text-info">€@relatorio.TicketMedio.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex flex-column gap-2">
+                    <a class="btn btn-outline-secondary btn-sm" @onclick="ExportarPdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+                    </a>
+                    <a class="btn btn-outline-secondary btn-sm" @onclick="ExportarCsv">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Vendas por categoria -->
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-pie-chart me-2 text-primary"></i>Por Categoria</h6>
+                    @if (relatorio.PorCategoria.Any())
+                    {
+                        var maxCat = relatorio.PorCategoria.Max(c => c.Total);
+                        @foreach (var c in relatorio.PorCategoria)
+                        {
+                            var pct = maxCat > 0 ? (double)(c.Total / maxCat * 100) : 0;
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small">
+                                    <span>@c.Categoria</span>
+                                    <strong>€@c.Total.ToString("N2")</strong>
+                                </div>
+                                <div class="progress" style="height:8px;border-radius:99px">
+                                    <div class="progress-bar bg-info" style="width:@pct%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Top produtos -->
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-trophy me-2 text-warning"></i>Top 10 Produtos</h6>
+                    <table class="table table-sm table-hover">
+                        <thead><tr><th>#</th><th>Produto</th><th class="text-end">Qtd Vendida</th><th class="text-end">Total €</th></tr></thead>
+                        <tbody>
+                            @{ int rank = 1; }
+                            @foreach (var p in relatorio.TopProdutos)
+                            {
+                                <tr>
+                                    <td class="text-muted">@(rank++)</td>
+                                    <td class="small">@p.Produto</td>
+                                    <td class="text-end small">@p.QuantidadeTotal.ToString("0.##")</td>
+                                    <td class="text-end small fw-semibold">€@p.TotalVendas.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!a_carregar)
+{
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-bar-chart fs-1 d-block mb-2 opacity-25"></i>
+        Selecione os filtros e clique em "Gerar" para ver o relatório.
+    </div>
+}
+
+@code {
+    private List<Core.Entities.Loja> lojas = new();
+    private int filtroLojaId;
+    private DateTime dataInicio = DateTime.Today.AddDays(-30);
+    private DateTime dataFim = DateTime.Today;
+    private RelatorioVendasDto? relatorio;
+    private bool a_carregar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Lojas loaded via IReportService - no direct Data layer dependency
+        if (Session.IsGestorCadeia)
+        {
+            var dashboards = await ReportSvc.GetDashboardCentralAsync();
+            lojas = dashboards.Select(d => new Core.Entities.Loja { Id = d.LojaId, Nome = d.NomeLoja }).ToList();
+        }
+    }
+
+    private void SetPeriodo(int dias) { dataInicio = DateTime.Today.AddDays(-dias); dataFim = DateTime.Today; }
+
+    private async Task GerarRelatorio()
+    {
+        a_carregar = true;
+        var lojaId = Session.IsGestorCadeia
+            ? (filtroLojaId == 0 ? (int?)null : filtroLojaId)
+            : Session.LojaId;
+        relatorio = await ReportSvc.GetRelatorioVendasAsync(lojaId, dataInicio, dataFim);
+        a_carregar = false;
+    }
+
+    private void ExportarPdf() { /* TODO */ }
+    private void ExportarCsv() { /* TODO */ }
+}

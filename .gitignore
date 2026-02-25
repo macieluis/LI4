@@ -1,0 +1,71 @@
+# ── .NET Build artifacts ──────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.suo
+*.vs/
+.vs/
+*.swp
+
+# ── NuGet ─────────────────────────────────────────────────────
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+packages/
+# Comentar se usas NuGet.Config:
+# nuget.config
+
+# ── Base de dados SQLite ──────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Publicação / Deploy ───────────────────────────────────────
+publish/
+[Pp]ublish/
+
+# ── Rider / JetBrains ────────────────────────────────────────
+.idea/
+*.sln.iml
+
+# ── Visual Studio Code ───────────────────────────────────────
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ── macOS ─────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Instaladores e pacotes grandes ────────────────────────────
+*.pkg
+*.dmg
+*.exe
+*.msi
+
+# ── Testes – cobertura ────────────────────────────────────────
+coverage*/
+TestResults/
+*.coverage
+*.coveragexml
+
+# ── Segredos / Configurações locais ──────────────────────────
+*.env
+*.env.local
+appsettings.Development.json
+secrets.json
+
+# ── Temporários ───────────────────────────────────────────────
+*.tmp
+*.temp
+~$*

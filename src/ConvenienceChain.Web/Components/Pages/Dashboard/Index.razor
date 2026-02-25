@@ -1,0 +1,204 @@
+@page "/dashboard"
+@using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IReportService ReportSvc
+@inject IConsolidacaoService ConsSvc
+@inject SessionService Session
+
+<PageTitle>Dashboard – SGCLC</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
+        <p class="text-muted mb-0">@(Session.IsGestorCadeia ? "Visão global da cadeia" : $"Loja: {Session.Nome}")</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>@DateTime.Now.ToString("dd/MM/yyyy")</span>
+        @if (Session.IsGestorCadeia)
+        {
+            <button class="btn btn-outline-primary btn-sm" @onclick="ConsolidarAgora" disabled="@a_consolidar">
+                @if (a_consolidar) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-arrow-repeat me-1"></i>Consolidar Agora
+            </button>
+        }
+    </div>
+</div>
+
+@if (a_carregar)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary"></div>
+    </div>
+}
+else if (Session.IsGestorCadeia && dashboards is not null)
+{
+    <!-- KPIs globais -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-currency-euro me-1"></i>Vendas Hoje</div>
+                    <div class="kpi-value text-success">€@dashboards.Sum(d => d.TotalVendasHoje).ToString("N2")</div>
+                    <div class="text-muted small">Todas as lojas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-receipt me-1"></i>Transações</div>
+                    <div class="kpi-value text-primary">@dashboards.Sum(d => d.NrTransacoesHoje)</div>
+                    <div class="text-muted small">Hoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-exclamation-triangle me-1"></i>Alertas Stock</div>
+                    <div class="kpi-value text-warning">@dashboards.Sum(d => d.AlertasStock)</div>
+                    <div class="text-muted small">Produtos abaixo do mínimo</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-truck me-1"></i>Encomendas Pendentes</div>
+                    <div class="kpi-value text-danger">@dashboards.Sum(d => d.EncomendaePendentes)</div>
+                    <div class="text-muted small">Por rececionar</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendas por loja -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-bar-chart me-2 text-primary"></i>Vendas Hoje por Loja</h6>
+                    @{
+                        var maxVenda = dashboards.Max(d => d.TotalVendasHoje);
+                    }
+                    @foreach (var d in dashboards.OrderByDescending(x => x.TotalVendasHoje))
+                    {
+                        var pct = maxVenda > 0 ? (d.TotalVendasHoje / maxVenda * 100) : 0;
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>@d.NomeLoja</span>
+                                <strong>€@d.TotalVendasHoje.ToString("N2")</strong>
+                            </div>
+                            <div class="progress" style="height:10px;border-radius:99px">
+                                <div class="progress-bar bg-primary" style="width:@pct%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-list-stars me-2 text-primary"></i>Resumo por Loja</h6>
+                    <table class="table table-sm table-hover">
+                        <thead><tr><th>Loja</th><th class="text-end">Vendas</th><th class="text-end">Trans.</th></tr></thead>
+                        <tbody>
+                            @foreach (var d in dashboards)
+                            {
+                                <tr>
+                                    <td class="small">@d.NomeLoja.Split(' ').Last()</td>
+                                    <td class="text-end small">€@d.TotalVendasHoje.ToString("N2")</td>
+                                    <td class="text-end small">@d.NrTransacoesHoje</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!Session.IsGestorCadeia && dashboardLoja is not null)
+{
+    <!-- Dashboard de Loja -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card kpi-card">
+                <div class="card-body">
+                    <div class="kpi-label">Vendas Hoje</div>
+                    <div class="kpi-value text-success">€@dashboardLoja.TotalVendasHoje.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card">
+                <div class="card-body">
+                    <div class="kpi-label">Transações</div>
+                    <div class="kpi-value text-primary">@dashboardLoja.NrTransacoesHoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card">
+                <div class="card-body">
+                    <div class="kpi-label">Alertas Stock</div>
+                    <div class="kpi-value text-warning">@dashboardLoja.AlertasStock</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card">
+                <div class="card-body">
+                    <div class="kpi-label">Encomendas Pendentes</div>
+                    <div class="kpi-value text-danger">@dashboardLoja.EncomendaePendentes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimos 7 dias -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-calendar-week me-2 text-primary"></i>Vendas – Últimos 7 Dias</h6>
+            <table class="table table-sm table-hover">
+                <thead><tr><th>Data</th><th class="text-end">Total Vendas</th><th class="text-end">Nº Transações</th></tr></thead>
+                <tbody>
+                    @foreach (var dia in dashboardLoja.UltimosSete.OrderByDescending(d => d.Data))
+                    {
+                        <tr>
+                            <td>@dia.Data.ToString("dd/MM/yyyy")</td>
+                            <td class="text-end">€@dia.Total.ToString("N2")</td>
+                            <td class="text-end">@dia.NrTransacoes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private IEnumerable<DashboardLojaDto>? dashboards;
+    private DashboardLojaDto? dashboardLoja;
+    private bool a_carregar = true;
+    private bool a_consolidar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.IsGestorCadeia)
+            dashboards = await ReportSvc.GetDashboardCentralAsync();
+        else if (Session.LojaId.HasValue)
+            dashboardLoja = await ReportSvc.GetDashboardLojaAsync(Session.LojaId.Value);
+        a_carregar = false;
+    }
+
+    private async Task ConsolidarAgora()
+    {
+        a_consolidar = true;
+        await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(DateTime.Today));
+        dashboards = await ReportSvc.GetDashboardCentralAsync();
+        a_consolidar = false;
+    }
+}

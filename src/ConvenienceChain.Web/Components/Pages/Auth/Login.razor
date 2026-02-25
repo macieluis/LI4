@@ -1,0 +1,88 @@
+@page "/login"
+@layout EmptyLayout
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IAuthService AuthSvc
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>Login – SGCLC QuickMart</PageTitle>
+
+<div class="login-wrapper d-flex min-vh-100 align-items-center justify-content-center" style="background: linear-gradient(135deg, #1a2332 0%, #2d3f55 100%);">
+    <div class="card shadow-lg border-0 rounded-4" style="width:420px">
+        <div class="card-body p-5">
+            <div class="text-center mb-4">
+                <div class="login-logo mb-3">
+                    <i class="bi bi-shop-window fs-1 text-primary"></i>
+                </div>
+                <h2 class="fw-bold">SGCLC</h2>
+                <p class="text-muted small">Sistema de Gestão – QuickMart</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(erro))
+            {
+                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    @erro
+                </div>
+            }
+
+            <EditForm Model="model" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <InputText @bind-Value="model.Email" class="form-control" placeholder="email@quickmart.pt" />
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <InputText @bind-Value="model.Password" type="password" class="form-control" placeholder="••••••••" />
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" disabled="@a_carregar">
+                    @if (a_carregar) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    Entrar
+                </button>
+            </EditForm>
+
+            <div class="mt-4 p-3 bg-light rounded-3">
+                <p class="text-muted small mb-2 fw-semibold">Credenciais de teste:</p>
+                <div class="small text-muted">
+                    <div>🔑 <strong>Gestor:</strong> gestor@quickmart.pt / Admin@123</div>
+                    <div>🔑 <strong>Gerente:</strong> ana@quickmart.pt / Gerente@1</div>
+                    <div>🔑 <strong>Func.:</strong> carlos@quickmart.pt / Func@1234</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel model = new();
+    private string? erro;
+    private bool a_carregar;
+
+    private async Task HandleLogin()
+    {
+        a_carregar = true; erro = null;
+        var result = await AuthSvc.LoginAsync(model.Email, model.Password);
+        if (result is null)
+        {
+            erro = "Email ou password incorretos. Verifique as suas credenciais.";
+            a_carregar = false;
+            return;
+        }
+        Session.Login(result);
+        Nav.NavigateTo("/dashboard");
+    }
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

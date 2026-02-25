@@ -1,0 +1,210 @@
+@page "/encomendas"
+@using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IOrderService OrderSvc
+@inject IFornecedorService FornecedorSvc
+@inject IProdutoService ProdutoSvc
+@inject SessionService Session
+
+<PageTitle>Encomendas – SGCLC</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-truck me-2 text-primary"></i>Encomendas</h1>
+        <p class="text-muted mb-0">Gestão de encomendas a fornecedores</p>
+    </div>
+    @if (Session.IsGerenteLoja)
+    {
+        <button class="btn btn-primary btn-sm" @onclick="() => modalNovaEncomenda = true">
+            <i class="bi bi-plus-lg me-1"></i>Nova Encomenda
+        </button>
+    }
+</div>
+
+@if (sucessoMsg is not null)
+{
+    <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>@sucessoMsg</div>
+}
+
+<!-- Filtro estado -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex gap-2">
+            @foreach (var estado in new[] { "", "Pendente", "Enviada", "Rececionada", "Cancelada" })
+            {
+                <button class="btn btn-sm @(filtroEstado == estado ? "btn-primary" : "btn-outline-secondary")"
+                        @onclick="() => { filtroEstado = estado; Filtrar(); }">
+                    @(estado == "" ? "Todas" : estado)
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        @if (a_carregar)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else
+        {
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr><th>#</th><th>Data</th><th>Fornecedor</th><th>Loja</th><th class="text-center">Estado</th><th class="text-center">Ações</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in encomendas)
+                    {
+                        <tr>
+                            <td class="fw-medium small">#@e.Id</td>
+                            <td class="small">@e.DataCriacao.ToString("dd/MM/yy HH:mm")</td>
+                            <td class="small">@e.NomeFornecedor</td>
+                            <td class="small">@e.NomeLoja</td>
+                            <td class="text-center">
+                                <span class="badge badge-@e.Estado.ToLower() px-2 py-1">@e.Estado</span>
+                            </td>
+                            <td class="text-center">
+                                @if (e.Estado == "Pendente")
+                                {
+                                    <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
+                                        <i class="bi bi-box-arrow-in-down"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Cancelar(e.Id)" title="Cancelar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<!-- Modal Nova Encomenda -->
+@if (modalNovaEncomenda)
+{
+    <div class="modal fade show d-block" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-truck me-2 text-primary"></i>Nova Encomenda</h5>
+                    <button class="btn-close" @onclick="() => modalNovaEncomenda = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Fornecedor</label>
+                        <select class="form-select" @bind="novaEncFornecedorId">
+                            <option value="0">-- Selecionar --</option>
+                            @foreach (var f in fornecedores)
+                            {
+                                <option value="@f.Id">@f.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Observações</label>
+                        <textarea class="form-control" rows="2" @bind="novaEncObs"></textarea>
+                    </div>
+                    <hr />
+                    <h6 class="fw-semibold">Produtos a encomendar</h6>
+                    @foreach (var linha in novaEncLinhas)
+                    {
+                        <div class="row g-2 align-items-center mb-2">
+                            <div class="col-7">
+                                <select class="form-select form-select-sm" @bind="linha.ProdutoId">
+                                    <option value="0">-- Produto --</option>
+                                    @foreach (var p in todosProdutos)
+                                    {
+                                        <option value="@p.Id">@p.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <input type="number" class="form-control form-control-sm" placeholder="Qtd" @bind="linha.Quantidade" min="1" />
+                            </div>
+                            <div class="col-2">
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => novaEncLinhas.Remove(linha)">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => novaEncLinhas.Add(new())">
+                        <i class="bi bi-plus me-1"></i>Adicionar Produto
+                    </button>
+                    @if (!string.IsNullOrEmpty(erroEncomenda))
+                    {
+                        <div class="alert alert-danger mt-2 py-2 small">@erroEncomenda</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => modalNovaEncomenda = false">Cancelar</button>
+                    <button class="btn btn-primary btn-sm" @onclick="CriarEncomenda">Criar Encomenda</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EncomendaDto> todas = new(), encomendas = new();
+    private List<Core.Entities.Fornecedor> fornecedores = new();
+    private List<Core.Entities.Produto> todosProdutos = new();
+    private bool a_carregar = true, modalNovaEncomenda;
+    private string filtroEstado = "";
+    private string? erroEncomenda, sucessoMsg;
+    private int novaEncFornecedorId;
+    private string novaEncObs = "";
+    private List<LinhaInput> novaEncLinhas = new() { new() };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
+        todas = lojaId.HasValue
+            ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
+            : (await OrderSvc.GetPendentesAsync()).ToList();
+        encomendas = todas;
+        fornecedores = (await FornecedorSvc.GetAllAsync()).ToList();
+        todosProdutos = (await ProdutoSvc.GetAllAsync()).ToList();
+        a_carregar = false;
+    }
+
+    private void Filtrar()
+    {
+        encomendas = string.IsNullOrEmpty(filtroEstado)
+            ? todas
+            : todas.Where(e => e.Estado == filtroEstado).ToList();
+    }
+
+    private async Task CriarEncomenda()
+    {
+        erroEncomenda = null;
+        if (novaEncFornecedorId == 0) { erroEncomenda = "Selecione um fornecedor."; return; }
+        var linhas = novaEncLinhas.Where(l => l.ProdutoId > 0 && l.Quantidade > 0).ToList();
+        if (!linhas.Any()) { erroEncomenda = "Adicione pelo menos um produto."; return; }
+        var dto = new CreateEncomendaDto(
+            Session.LojaId!.Value, novaEncFornecedorId,
+            linhas.Select(l => new LinhaEncomendaDto(l.ProdutoId, l.Quantidade)),
+            novaEncObs);
+        await OrderSvc.CreateAsync(dto);
+        modalNovaEncomenda = false;
+        todas = (await OrderSvc.GetByLojaAsync(Session.LojaId!.Value)).ToList();
+        Filtrar();
+        sucessoMsg = "Encomenda criada com sucesso!";
+    }
+
+    private async Task Cancelar(int id)
+    {
+        await OrderSvc.CancelAsync(id);
+        todas = (await OrderSvc.GetByLojaAsync(Session.LojaId!.Value)).ToList();
+        Filtrar();
+    }
+
+    private void AbrirRececao(EncomendaDto e) { /* Simplificado – marcar como rececionada */ }
+
+    private class LinhaInput { public int ProdutoId { get; set; } public int Quantidade { get; set; } = 1; }
+}

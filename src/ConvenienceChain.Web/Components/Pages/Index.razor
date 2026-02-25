@@ -1,0 +1,11 @@
+@page "/"
+@using ConvenienceChain.Web.Services
+@inject SessionService Session
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        Nav.NavigateTo(Session.IsAuthenticated ? "/dashboard" : "/login");
+    }
+}

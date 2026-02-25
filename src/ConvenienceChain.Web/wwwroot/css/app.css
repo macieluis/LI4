@@ -1,0 +1,91 @@
+/* ── SGCLC – QuickMart App Styles ────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --sidebar-bg: #1a2332;
+    --sidebar-hover: #2d3f55;
+    --accent: #3b82f6;
+    --accent-dark: #2563eb;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #10b981;
+}
+
+* { font-family: 'Inter', sans-serif; }
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    min-height: 100vh;
+    background: var(--sidebar-bg);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar .brand { color: white; }
+.sidebar .nav-link { border-radius: 8px; transition: background .15s; font-size: .9rem; }
+.sidebar .nav-link:hover, .sidebar .nav-link.active { background: var(--sidebar-hover) !important; }
+.sidebar .nav-section-label { font-size: .7rem; letter-spacing: .08em; }
+
+.avatar-circle {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 1rem;
+}
+
+/* Cards KPI */
+.kpi-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    transition: transform .15s;
+}
+.kpi-card:hover { transform: translateY(-2px); }
+.kpi-value { font-size: 1.8rem; font-weight: 700; }
+.kpi-label { font-size: .8rem; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+
+/* Alerts stock */
+.stock-alert { background: #fef3c7; border-left: 4px solid var(--warning); border-radius: 6px; }
+.stock-ok { background: #d1fae5; border-left: 4px solid var(--success); border-radius: 6px; }
+
+/* POS */
+.pos-product-row { transition: background .1s; cursor: pointer; border-radius: 6px; }
+.pos-product-row:hover { background: #eff6ff; }
+.cart-total { font-size: 1.5rem; font-weight: 700; color: var(--accent-dark); }
+
+/* Tabelas */
+.table-hover tbody tr:hover { background: #f0f9ff; }
+th { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+
+/* Badges de estado */
+.badge-pendente  { background: #fef3c7; color: #92400e; }
+.badge-enviada   { background: #dbeafe; color: #1e40af; }
+.badge-rececionada { background: #d1fae5; color: #065f46; }
+.badge-cancelada { background: #fee2e2; color: #991b1b; }
+.badge-concluida { background: #d1fae5; color: #065f46; }
+.badge-devolvida { background: #ede9fe; color: #5b21b6; }
+
+/* Botão primário */
+.btn-primary { background: var(--accent); border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+/* Page header */
+.page-header { border-bottom: 2px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.5rem; font-weight: 700; color: #111827; }
+
+/* Loader */
+.spinner-overlay {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .sidebar { display: none; }
+}
