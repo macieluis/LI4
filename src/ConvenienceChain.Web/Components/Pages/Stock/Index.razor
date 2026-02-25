@@ -24,6 +24,18 @@
         <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>@alertas.Count() produto(s) abaixo do stock mínimo!</strong>
     </div>
 }
+@{
+    var expirados  = todos.Where(s => s.DiasFimValidade.HasValue && s.DiasFimValidade.Value < 0).ToList();
+    var aExpirar   = todos.Where(s => s.DiasFimValidade.HasValue && s.DiasFimValidade.Value >= 0 && s.DiasFimValidade.Value <= 30).ToList();
+}
+@if (expirados.Any())
+{
+    <div class="alert alert-danger mb-2"><i class="bi bi-x-octagon-fill me-2"></i><strong>@expirados.Count produto(s) EXPIRADO(S)!</strong> — @string.Join(", ", expirados.Select(s => s.NomeProduto))</div>
+}
+@if (aExpirar.Any())
+{
+    <div class="alert alert-warning mb-3"><i class="bi bi-clock-history me-2"></i><strong>@aExpirar.Count produto(s) a expirar em ≤30 dias</strong> — @string.Join(", ", aExpirar.Select(s => $"{s.NomeProduto} ({s.DiasFimValidade}d"))</div>
+}
 
 <!-- Filtros -->
 <div class="card border-0 shadow-sm mb-3">
@@ -40,6 +52,8 @@
                     <option value="">Todos</option>
                     <option value="alerta">Em alerta</option>
                     <option value="ok">Stock OK</option>
+                    <option value="expirado">Expirados</option>
+                    <option value="aExpirar">A expirar (≤30d)</option>
                 </select>
             </div>
         </div>
@@ -64,6 +78,7 @@
                             <th class="text-center">Qtd. Atual</th>
                             <th class="text-center">Stock Mín.</th>
                             <th class="text-end">Preço Venda</th>
+                            <th class="text-center">Validade</th>
                             <th class="text-center">Estado</th>
                             <th class="text-center">Ações</th>
                         </tr>
@@ -80,6 +95,24 @@
                                 <td class="text-center fw-semibold @(s.EmAlerta ? "text-danger" : "text-success")">@s.Quantidade.ToString("0.###")</td>
                                 <td class="text-center text-muted small">@s.StockMinimo.ToString("0.###")</td>
                                 <td class="text-end small">€@((s.PrecoVendaLocal ?? s.PrecoBaseVenda).ToString("N2"))</td>
+                                <td class="text-center">
+                                    @if (!s.DataValidade.HasValue)
+                                    {
+                                        <span class="text-muted small">–</span>
+                                    }
+                                    else if (s.DiasFimValidade < 0)
+                                    {
+                                        <span class="badge bg-danger" title="@s.DataValidade?.ToString("dd/MM/yyyy")"><i class="bi bi-x-octagon me-1"></i>Expirado</span>
+                                    }
+                                    else if (s.DiasFimValidade <= 30)
+                                    {
+                                        <span class="badge bg-warning text-dark" title="@s.DataValidade?.ToString("dd/MM/yyyy")"><i class="bi bi-clock me-1"></i>@s.DiasFimValidade d</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">@s.DataValidade?.ToString("dd/MM/yyyy")</span>
+                                    }
+                                </td>
                                 <td class="text-center">
                                     @if (s.EmAlerta)
                                     {
@@ -175,7 +208,14 @@
     {
         stockFiltrado = todos.Where(s =>
             (string.IsNullOrEmpty(filtroNome) || s.NomeProduto.Contains(filtroNome, StringComparison.OrdinalIgnoreCase)) &&
-            filtroAlerta switch { "alerta" => s.EmAlerta, "ok" => !s.EmAlerta, _ => true }
+            filtroAlerta switch
+            {
+                "alerta"   => s.EmAlerta,
+                "ok"       => !s.EmAlerta,
+                "expirado" => s.DiasFimValidade.HasValue && s.DiasFimValidade.Value < 0,
+                "aExpirar" => s.DiasFimValidade.HasValue && s.DiasFimValidade.Value >= 0 && s.DiasFimValidade.Value <= 30,
+                _          => true
+            }
         ).ToList();
     }
 

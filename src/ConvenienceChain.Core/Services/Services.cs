@@ -91,10 +91,17 @@ public class StockService : IStockService
     public async Task<IEnumerable<StockDto>> GetStockLojaAsync(int lojaId)
     {
         var stocks = await _stockRepo.GetByLojaAsync(lojaId);
-        return stocks.Select(s => new StockDto(
-            s.ProdutoId, s.Produto.Codigo, s.Produto.Nome,
-            s.Produto.Categoria?.Nome ?? "", s.Quantidade, s.StockMinimo,
-            s.PrecoVendaLocal, s.Produto.PrecoBaseVenda, s.EmAlerta));
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        return stocks.Select(s =>
+        {
+            var validade = s.Produto.DataValidade;
+            int? diasFim = validade.HasValue ? validade.Value.DayNumber - hoje.DayNumber : null;
+            return new StockDto(
+                s.ProdutoId, s.Produto.Codigo, s.Produto.Nome,
+                s.Produto.Categoria?.Nome ?? "", s.Quantidade, s.StockMinimo,
+                s.PrecoVendaLocal, s.Produto.PrecoBaseVenda, s.EmAlerta,
+                validade, diasFim);
+        });
     }
 
     public async Task<IEnumerable<StockAlertaDto>> GetAlertasAsync(int? lojaId = null)

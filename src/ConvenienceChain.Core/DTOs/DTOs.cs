@@ -13,7 +13,8 @@ public record UpdateProdutoDto(string Nome, string Descricao, decimal PrecoCusto
 
 // --- Stock ---
 public record StockDto(int ProdutoId, string CodigoProduto, string NomeProduto, string Categoria,
-    decimal Quantidade, decimal StockMinimo, decimal? PrecoVendaLocal, decimal PrecoBaseVenda, bool EmAlerta);
+    decimal Quantidade, decimal StockMinimo, decimal? PrecoVendaLocal, decimal PrecoBaseVenda,
+    bool EmAlerta, DateOnly? DataValidade, int? DiasFimValidade);
 public record StockAlertaDto(int LojaId, string NomeLoja, int ProdutoId, string NomeProduto,
     decimal Quantidade, decimal StockMinimo);
 

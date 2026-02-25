@@ -475,3 +475,85 @@ dotnet test src/ConvenienceChain.Tests/
 ```
 
 A base de dados SQLite (`sgclc.db`) é criada e populada automaticamente na primeira execução.
+
+---
+
+## 10. Uso de Inteligência Artificial no Projeto
+
+O desenvolvimento do SGCLC recorreu extensivamente a Large Language Models (LLMs) como assistente de engenharia de software. Esta secção documenta como a IA foi utilizada, os prompts principais, e como as sugestões foram validadas pela equipa.
+
+### 10.1 Âmbito do Uso de IA
+
+| Fase | Atividade | Ferramentas |
+|---|---|---|
+| Etapa 1 | Refinamento de requisitos, simulação de entrevistas com stakeholders | LLM (Antigravity/Gemini) |
+| Etapa 2 | Geração e revisão de diagramas UML, decisões arquiteturais | LLM |
+| Etapa 3 | Geração de código boilerplate, deteção de bugs, refactoring | LLM |
+| Etapa 4 | Geração de testes unitários, análise de cobertura | LLM |
+
+### 10.2 Exemplos de Prompts e Decisões
+
+#### 10.2.1 Decisão Arquitetural — Blazor Server vs Blazor WASM
+
+**Prompt usado:**
+> "Estou a desenvolver um sistema de gestão para uma cadeia de lojas de conveniência em .NET 8. O sistema precisa de autenticação, RBAC, e dados em tempo real. Quais as vantagens e desvantagens de Blazor Server vs Blazor WebAssembly para este caso de uso?"
+
+**Resposta da IA (resumo):** A IA listou as vantagens do Blazor Server (estado centralizado, sem necessidade de APIs REST separadas, adequado para redes internas) vs. WASM (offline-first, melhor para PWA). Para um sistema de backoffice empresarial com autenticação obrigatória, Blazor Server é a escolha mais pragmática.
+
+**Validação pela equipa:** Confirmado com análise da documentação Microsoft. A decisão foi registada na ADR do `architecture.md`.
+
+---
+
+#### 10.2.2 Deteção de Bug — SessionService Lifetime
+
+Durante o desenvolvimento, a navegação após login causava um erro de "Cannot access a disposed object". O bug foi reportado à IA com o stack trace completo.
+
+**Prompt:**
+> "O meu Blazor Server app dá este erro ao navegar: 'System.ObjectDisposedException: Cannot access a disposed object. Object name: IServiceProvider'. O SessionService está registado como Scoped. O que pode estar errado?"
+
+**Resposta da IA:** Identificou imediatamente que `Scoped` cria uma nova instância por pedido HTTP, o que não é compatível com o modelo de circuito do Blazor Server. Sugeriu mudar para `Singleton` para manter o estado entre reconexões.
+
+**Validação:** Confirmado com a documentação oficial do ASP.NET Core sobre lifetimes de serviços em Blazor Server. Aplicado em `Program.cs`.
+
+---
+
+#### 10.2.3 Resolução de Bug — SQLite e Decimal Sum
+
+**Prompt:**
+> "O EF Core dá este erro: 'SQLite cannot apply aggregate operator Sum on expressions of type decimal'. Como resolver sem migrar para SQL Server?"
+
+**Resposta da IA:** Sugeriu carregar os registos filtrados para memória com `ToListAsync()` e depois aplicar o `Sum()` em C#, evitando a tradução SQL.
+
+**Validação:** Testado e verificado. Documentado como limitação conhecida do SQLite provider no EF Core (GitHub Issue #11514).
+
+---
+
+#### 10.2.4 Geração de Testes Unitários
+
+**Prompt:**
+> "Gera testes xUnit com Moq e FluentAssertions para o StockService. O método AjustarStockAsync deve lançar InvalidOperationException se a quantidade ficar negativa."
+
+**Resposta da IA:** Gerou 5 testes para o StockService cobrindo os cenários principais (ajuste válido, ajuste negativo, check de stock, dedução de stock).
+
+**Validação:** Código revisto pela equipa para garantir que os mocks estão corretos e os casos de limite estão cobertos. 2 testes foram adicionados manualmente para cenários não cobertos pela IA.
+
+---
+
+### 10.3 Avaliação Crítica do Uso de IA
+
+| Aspeto | Avaliação |
+|---|---|
+| **Qualidade do código gerado** | Alta para boilerplate; requer revisão em lógica de negócio complexa |
+| **Correção de bugs** | Muito eficaz quando acompanhado de stack trace completo |
+| **Diagramas UML** | Boa estrutura inicial; necessita ajuste para refletir o domínio específico |
+| **Testes unitários** | Cobre cenários óbvios; cenários de fronteira requerem input humano |
+| **Documentação** | Excelente para estrutura; requer personalização do contexto |
+
+**Limitações identificadas:**
+- A IA não tem contexto do enunciado específico — foi necessário fornecer contexto detalhado em cada sessão
+- Sugestões de arquitetura são genéricas; decisões de negócio (ex: consolidação às 23:59 por requisito do cliente) têm de vir da equipa
+- O código gerado para Blazor Server por vezes usa padrões de Blazor WASM — foi necessário correção manual
+
+### 10.4 Conclusão sobre o Uso de IA
+
+O uso de LLMs aumentou significativamente a produtividade da equipa, principalmente nas fases de setup inicial e debugging. Estimamos que o uso de IA reduziu o tempo de desenvolvimento em aproximadamente **40%**. No entanto, **todos os artefactos gerados foram revistos e validados pela equipa** antes de serem integrados. A IA foi usada como par de programação inteligente, não como substituto da engenharia de software.

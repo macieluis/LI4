@@ -33,23 +33,24 @@ public static class SeedData
         db.Lojas.AddRange(loja1, loja2, loja3, loja4, loja5);
 
         // ── Produtos ──────────────────────────────────────────────
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
         var produtos = new[]
         {
-            new Produto { Codigo = "5601227001001", Nome = "Água Mineral 500ml",    PrecoCusto = 0.15m, PrecoBaseVenda = 0.60m, UnidadeMedida = "unidade", CategoriaId = 0, Categoria = catBebidas },
-            new Produto { Codigo = "5601227001002", Nome = "Água Mineral 1,5L",     PrecoCusto = 0.25m, PrecoBaseVenda = 0.95m, UnidadeMedida = "unidade", Categoria = catBebidas },
-            new Produto { Codigo = "5601227001003", Nome = "Coca-Cola 330ml",        PrecoCusto = 0.60m, PrecoBaseVenda = 1.50m, UnidadeMedida = "unidade", Categoria = catBebidas },
-            new Produto { Codigo = "5601227001004", Nome = "Red Bull 250ml",         PrecoCusto = 0.95m, PrecoBaseVenda = 1.90m, UnidadeMedida = "unidade", Categoria = catBebidas },
-            new Produto { Codigo = "5601227001005", Nome = "Sumo Laranja 1L",        PrecoCusto = 0.80m, PrecoBaseVenda = 1.80m, UnidadeMedida = "unidade", Categoria = catBebidas },
-            new Produto { Codigo = "5601227002001", Nome = "Cerveja SuperBock 330ml",PrecoCusto = 0.45m, PrecoBaseVenda = 1.10m, UnidadeMedida = "unidade", Categoria = catBebAl },
-            new Produto { Codigo = "5601227002002", Nome = "Vinho Tinto 750ml",      PrecoCusto = 2.50m, PrecoBaseVenda = 5.99m, UnidadeMedida = "unidade", Categoria = catBebAl },
-            new Produto { Codigo = "5601227003001", Nome = "Batatas Fritas 180g",    PrecoCusto = 0.85m, PrecoBaseVenda = 1.75m, UnidadeMedida = "unidade", Categoria = catSnacks },
-            new Produto { Codigo = "5601227003002", Nome = "Bolacha Maria",           PrecoCusto = 0.50m, PrecoBaseVenda = 1.20m, UnidadeMedida = "unidade", Categoria = catSnacks },
-            new Produto { Codigo = "5601227003003", Nome = "Pão de Leite",            PrecoCusto = 0.20m, PrecoBaseVenda = 0.45m, UnidadeMedida = "unidade", Categoria = catSnacks },
-            new Produto { Codigo = "5601227004001", Nome = "Leite Meio-Gordo 1L",    PrecoCusto = 0.55m, PrecoBaseVenda = 1.10m, UnidadeMedida = "unidade", Categoria = catLact },
-            new Produto { Codigo = "5601227004002", Nome = "Iogurte Natural 125g",   PrecoCusto = 0.30m, PrecoBaseVenda = 0.65m, UnidadeMedida = "unidade", Categoria = catLact },
-            new Produto { Codigo = "5601227005001", Nome = "Champô 400ml",            PrecoCusto = 1.20m, PrecoBaseVenda = 2.80m, UnidadeMedida = "unidade", Categoria = catHig },
-            new Produto { Codigo = "5601227005002", Nome = "Pasta de Dentes 75ml",   PrecoCusto = 0.90m, PrecoBaseVenda = 2.10m, UnidadeMedida = "unidade", Categoria = catHig },
-            new Produto { Codigo = "5601227006001", Nome = "Pizza Margherita 400g",  PrecoCusto = 1.80m, PrecoBaseVenda = 3.99m, UnidadeMedida = "unidade", Categoria = catCongelados },
+            new Produto { Codigo = "5601227001001", Nome = "Água Mineral 500ml",     PrecoCusto = 0.15m, PrecoBaseVenda = 0.60m, UnidadeMedida = "unidade", Categoria = catBebidas,    DataValidade = hoje.AddDays(365) },
+            new Produto { Codigo = "5601227001002", Nome = "Água Mineral 1,5L",      PrecoCusto = 0.25m, PrecoBaseVenda = 0.95m, UnidadeMedida = "unidade", Categoria = catBebidas,    DataValidade = hoje.AddDays(365) },
+            new Produto { Codigo = "5601227001003", Nome = "Coca-Cola 330ml",         PrecoCusto = 0.60m, PrecoBaseVenda = 1.50m, UnidadeMedida = "unidade", Categoria = catBebidas,    DataValidade = hoje.AddDays(240) },
+            new Produto { Codigo = "5601227001004", Nome = "Red Bull 250ml",          PrecoCusto = 0.95m, PrecoBaseVenda = 1.90m, UnidadeMedida = "unidade", Categoria = catBebidas,    DataValidade = hoje.AddDays(180) },
+            new Produto { Codigo = "5601227001005", Nome = "Sumo Laranja 1L",         PrecoCusto = 0.80m, PrecoBaseVenda = 1.80m, UnidadeMedida = "unidade", Categoria = catBebidas,    DataValidade = hoje.AddDays(20) }, // ⚠ expira em breve
+            new Produto { Codigo = "5601227002001", Nome = "Cerveja SuperBock 330ml", PrecoCusto = 0.45m, PrecoBaseVenda = 1.10m, UnidadeMedida = "unidade", Categoria = catBebAl,      DataValidade = hoje.AddDays(300) },
+            new Produto { Codigo = "5601227002002", Nome = "Vinho Tinto 750ml",       PrecoCusto = 2.50m, PrecoBaseVenda = 5.99m, UnidadeMedida = "unidade", Categoria = catBebAl,      DataValidade = null },             // sem validade
+            new Produto { Codigo = "5601227003001", Nome = "Batatas Fritas 180g",     PrecoCusto = 0.85m, PrecoBaseVenda = 1.75m, UnidadeMedida = "unidade", Categoria = catSnacks,     DataValidade = hoje.AddDays(120) },
+            new Produto { Codigo = "5601227003002", Nome = "Bolacha Maria",            PrecoCusto = 0.50m, PrecoBaseVenda = 1.20m, UnidadeMedida = "unidade", Categoria = catSnacks,     DataValidade = hoje.AddDays(90)  },
+            new Produto { Codigo = "5601227003003", Nome = "Pão de Leite",             PrecoCusto = 0.20m, PrecoBaseVenda = 0.45m, UnidadeMedida = "unidade", Categoria = catSnacks,     DataValidade = hoje.AddDays(3)   }, // ⚠⚠ expira em 3 dias
+            new Produto { Codigo = "5601227004001", Nome = "Leite Meio-Gordo 1L",     PrecoCusto = 0.55m, PrecoBaseVenda = 1.10m, UnidadeMedida = "unidade", Categoria = catLact,       DataValidade = hoje.AddDays(10)  }, // ⚠ expira em breve
+            new Produto { Codigo = "5601227004002", Nome = "Iogurte Natural 125g",    PrecoCusto = 0.30m, PrecoBaseVenda = 0.65m, UnidadeMedida = "unidade", Categoria = catLact,       DataValidade = hoje.AddDays(-2)  }, // ⛔ EXPIRADO
+            new Produto { Codigo = "5601227005001", Nome = "Champô 400ml",             PrecoCusto = 1.20m, PrecoBaseVenda = 2.80m, UnidadeMedida = "unidade", Categoria = catHig,        DataValidade = hoje.AddDays(730) },
+            new Produto { Codigo = "5601227005002", Nome = "Pasta de Dentes 75ml",    PrecoCusto = 0.90m, PrecoBaseVenda = 2.10m, UnidadeMedida = "unidade", Categoria = catHig,        DataValidade = hoje.AddDays(730) },
+            new Produto { Codigo = "5601227006001", Nome = "Pizza Margherita 400g",   PrecoCusto = 1.80m, PrecoBaseVenda = 3.99m, UnidadeMedida = "unidade", Categoria = catCongelados,  DataValidade = hoje.AddDays(45)  },
         };
         db.Produtos.AddRange(produtos);
 

@@ -40,43 +40,43 @@ graph TB
     subgraph Servidor["🖥️ Servidor ASP.NET Core"]
         BL["Blazor Server Hub\n(SignalR)"]
         
-        subgraph AppLayer["Application Layer"]
+        subgraph AppLayer["Application Layer (ConvenienceChain.Core)"]
             AuthSvc["AuthService"]
-            ProdSvc["ProductService"]
+            ProdSvc["ProdutoService"]
             StockSvc["StockService"]
             SalesSvc["SalesService"]
             OrderSvc["OrderService"]
-            InvSvc["InvoiceService"]
-            ConsSvc["ConsolidationService"]
+            FaturaSvc["FaturaService"]
+            ConsSvc["ConsolidacaoService"]
             RepSvc["ReportService"]
+            UtilSvc["UtilizadorService"]
+            FornSvc["FornecedorService"]
         end
 
-        subgraph DataLayer["Data Layer (EF Core)"]
-            UoW["UnitOfWork"]
-            ProdRepo["ProductRepository"]
+        subgraph DataLayer["Data Layer (ConvenienceChain.Data)"]
+            ProdRepo["ProdutoRepository"]
             StockRepo["StockRepository"]
-            SalesRepo["SalesRepository"]
-            OrderRepo["OrderRepository"]
-            ConRepo["ConsolidationRepository"]
+            VendaRepo["VendaRepository"]
+            EncomRepo["EncomendaRepository"]
+            FaturaRepo["FaturaRepository"]
+            ConsRepo["ConsolidacaoRepository"]
+            UtilRepo["UtilizadorRepository"]
         end
 
-        Jobs["Background Jobs\n(Hosted Service)"]
+        Jobs["ConsolidacaoBackgroundService\n(IHostedService)"]
+        Session["SessionService\n(Singleton)"]
     end
 
     subgraph BD["🗄️ Base de Dados"]
-        DB[("SQLite / SQL Server\nSGCLC_DB")]
+        DB[("SQLite (dev)\nSQL Server (prod)\nsgclc.db")]
     end
 
     UI <-->|SignalR| BL
     BL --> AppLayer
-    AppLayer --> UoW
-    UoW --> ProdRepo
-    UoW --> StockRepo
-    UoW --> SalesRepo
-    UoW --> OrderRepo
-    UoW --> ConRepo
+    BL --> Session
+    AppLayer --> DataLayer
     DataLayer -->|EF Core| DB
-    Jobs -->|trigger| ConsSvc
+    Jobs -->|IServiceScope| ConsSvc
 ```
 
 ---
@@ -107,9 +107,10 @@ classDiagram
         +decimal PrecoCusto
         +decimal PrecoBaseVenda
         +string UnidadeMedida
-        +string Foto
+        +string? Foto
         +bool Ativo
         +int CategoriaId
+        +DateOnly? DataValidade
         +Categoria Categoria
     }
 
@@ -208,7 +209,7 @@ classDiagram
     class Consolidacao {
         +int Id
         +int LojaId
-        +DateTime DataConsolidacao
+        +DateOnly DataConsolidacao
         +DateTime DataHoraExecucao
         +decimal TotalVendas
         +int NumeroTransacoes
@@ -337,41 +338,49 @@ sequenceDiagram
 │   ├── ConvenienceChain.Web/                # Blazor Server App
 │   │   ├── Components/
 │   │   │   ├── Pages/                       # Páginas Blazor (.razor)
-│   │   │   │   ├── Dashboard/
-│   │   │   │   ├── POS/
-│   │   │   │   ├── Products/
-│   │   │   │   ├── Stock/
-│   │   │   │   ├── Orders/
-│   │   │   │   ├── Invoices/
-│   │   │   │   ├── Reports/
-│   │   │   │   └── Admin/
-│   │   │   └── Shared/                      # Layout, NavMenu, etc.
-│   │   ├── wwwroot/                         # CSS, JS, imagens estáticas
+│   │   │   │   ├── Auth/Login.razor
+│   │   │   │   ├── Dashboard/Index.razor
+│   │   │   │   ├── POS/Index.razor
+│   │   │   │   ├── Stock/Index.razor
+│   │   │   │   ├── Encomendas/Index.razor
+│   │   │   │   ├── Faturas/Index.razor
+│   │   │   │   ├── Relatorios/Index.razor
+│   │   │   │   ├── Consolidacao/Index.razor
+│   │   │   │   └── Admin/Utilizadores.razor
+│   │   │   └── Layout/
+│   │   │       ├── MainLayout.razor         # Sidebar RBAC-aware
+│   │   │       └── EmptyLayout.razor        # Layout sem sidebar (Login)
+│   │   ├── Services/
+│   │   │   ├── SessionService.cs            # Estado do utilizador (Singleton)
+│   │   │   ├── ConsolidacaoBackgroundService.cs
+│   │   │   └── SeedData.cs
+│   │   ├── wwwroot/
 │   │   ├── Program.cs
 │   │   └── appsettings.json
 │   │
 │   ├── ConvenienceChain.Core/               # Domínio e Lógica de Negócio
-│   │   ├── Entities/                        # Entidades de domínio
-│   │   ├── Interfaces/                      # IRepository, IService
-│   │   ├── Services/                        # Application Services
-│   │   ├── DTOs/                            # Data Transfer Objects
-│   │   └── Enums/
+│   │   ├── Entities/Entities.cs             # 12 entidades de domínio
+│   │   ├── Interfaces/
+│   │   │   ├── IRepositories.cs             # 11 contratos de repositório
+│   │   │   └── IServices.cs                 # 10 contratos de serviço
+│   │   ├── Services/Services.cs             # 10 implementações de serviço
+│   │   ├── DTOs/DTOs.cs                     # 30+ DTOs imutáveis
+│   │   └── Enums/Enums.cs
 │   │
 │   └── ConvenienceChain.Data/               # Infraestrutura de Dados
-│       ├── Context/                         # AppDbContext (EF Core)
-│       ├── Repositories/                    # Implementações de Repository
-│       ├── Migrations/
-│       └── Seed/                            # Dados iniciais (seed data)
+│       ├── Context/AppDbContext.cs           # DbContext com Fluent API
+│       └── Repositories/Repositories.cs     # 11 repositórios
 │
 ├── tests/
-│   ├── ConvenienceChain.Tests.Unit/
-│   └── ConvenienceChain.Tests.Integration/
+│   └── ConvenienceChain.Tests.Unit/
+│       └── ConvenienceChain.Tests/
+│           └── ServiceTests.cs              # 10 testes xUnit
 │
 └── docs/
-    ├── etapa1/
-    ├── etapa2/
-    ├── etapa3/
-    └── etapa4/
+    ├── etapa1/  SRS, requisitos, user_stories, use_cases, atas
+    ├── etapa2/  architecture, wireframes, dicionario_dados, diagramas
+    ├── etapa3/  scrum.md
+    └── etapa4/  testes.md
 ```
 
 ---
@@ -407,6 +416,7 @@ erDiagram
         decimal PrecoBaseVenda
         int CategoriaId FK
         bool Ativo
+        date DataValidade "nullable"
     }
     STOCK {
         int Id PK

@@ -45,6 +45,8 @@ public class Produto
     public string? Foto { get; set; }
     public bool Ativo { get; set; } = true;
     public int CategoriaId { get; set; }
+    /// <summary>Prazo de validade do produto (null = sem validade).</summary>
+    public DateOnly? DataValidade { get; set; }
 
     public Categoria Categoria { get; set; } = null!;
     public ICollection<Stock> Stocks { get; set; } = new List<Stock>();
