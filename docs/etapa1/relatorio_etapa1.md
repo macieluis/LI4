@@ -516,6 +516,8 @@ Os principais artefactos produzidos nesta etapa são:
 | Tabelas de Requisitos | `docs/etapa1/requisitos.md` | 42 RFs + 15 RNFs com rastreabilidade |
 | User Stories | `docs/etapa1/user_stories.md` | 23 User Stories em 8 épicos |
 | Casos de Uso | `docs/etapa1/use_cases.md` | 25 UCs com fluxos completos |
+| **Diagramas UML** | `docs/etapa1/diagramas_uml.md` | 8 Diagramas de Casos de Uso em Mermaid |
+| **Refinamento de Requisitos** | `docs/etapa1/refinamento_requisitos.md` | 8 requisitos ambíguos refinados com LLM |
 | Entrevistas com Stakeholders | `docs/etapa1/entrevistas.md` | 3 entrevistas simuladas com LLM (GC, GL, FN) |
 | Atas de Reuniões | `docs/etapa1/atas_reunioes.md` | 3 atas + questionário a funcionários |
 
