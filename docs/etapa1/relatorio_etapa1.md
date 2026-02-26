@@ -516,6 +516,7 @@ Os principais artefactos produzidos nesta etapa são:
 | Tabelas de Requisitos | `docs/etapa1/requisitos.md` | 42 RFs + 15 RNFs com rastreabilidade |
 | User Stories | `docs/etapa1/user_stories.md` | 23 User Stories em 8 épicos |
 | Casos de Uso | `docs/etapa1/use_cases.md` | 25 UCs com fluxos completos |
+| Entrevistas com Stakeholders | `docs/etapa1/entrevistas.md` | 3 entrevistas simuladas com LLM (GC, GL, FN) |
 | Atas de Reuniões | `docs/etapa1/atas_reunioes.md` | 3 atas + questionário a funcionários |
 
 Os requisitos foram validados e aprovados pelo cliente (João Martins – Gestor da Cadeia QuickMart) na reunião de 10 de Fevereiro de 2026, com registo em ata.
