@@ -206,7 +206,7 @@ O sistema possui **42 Requisitos Funcionais** organizados em 8 áreas funcionais
 | **RF06** | O sistema deve permitir criar, consultar, editar e desativar produtos com os atributos: código único, nome, descrição, categoria, preço de custo, preço de venda, unidade de medida e foto (opcional) | R1, R4 | Essencial | Alta | Aprovado |
 | **RF07** | O sistema deve suportar organização de produtos em categorias e subcategorias hierárquicas | R1 | Essencial | Alta | Aprovado |
 | **RF08** | O sistema deve permitir que o preço de venda de um produto seja diferente por loja (sobrepondo o preço base central) | R2 | Importante | Média | Aprovado |
-| **RF09** | O sistema deve disponibilizar um catálogo de produtos pesquisável por nome, código ou categoria | R2, R3 | Essencial | Alta | Aprovado |
+| **RF09** | O sistema deve disponibilizar um catálogo de produtos pesquisável por nome, código ou categoria, de forma insensível a maiúsculas/minúsculas e acentos | R2, R3 | Essencial | Alta | Implementado |
 | **RF10** | O sistema deve alertar o utilizador em caso de código de produto duplicado ao criar um novo produto | R4 | Importante | Média | Aprovado |
 
 ### 4.3 Gestão de Stock

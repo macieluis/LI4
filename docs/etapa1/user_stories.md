@@ -67,9 +67,11 @@
 > **para** encontrar rapidamente o produto que procuro.
 
 **Critérios de Aceitação:**
-- [ ] Pesquisa retorna resultados em tempo real (máx. 1 segundo)
+- [x] Pesquisa retorna resultados em tempo real (máx. 1 segundo)
+- [x] Insensível a maiúsculas/minúsculas ("AGUA" encontra "Água")
+- [x] Insensível a acentos ("cafe" encontra "Café", "accao" encontra "Ação")
+- [x] Pesquisa por nome, código de produto e categoria
 - [ ] Posso filtrar por categoria
-- [ ] Resultados mostram nome, código, categoria e preço
 
 ### US-06 | Definir Preço por Loja
 > **Como** Gerente de Loja,  

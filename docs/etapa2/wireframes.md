@@ -121,24 +121,31 @@
 
 ## 5. Ponto de Venda – POS (RF17, RF18, RF19, RF20)
 
+> **Nota de implementação:** O POS foi redesenhado para mostrar diretamente uma tabela de todos os produtos com `Stock > 0` (filtragem instantânea no cliente). Não existe chamada ao servidor por cada pesquisa — o filtro é local, imediato e insensível a acentos e maiúsculas.
+
 ```
-┌──────────────────────────────┬───────────────────────────────────┐
-│  🛒 NOVA VENDA               │  CARRINHO                         │
-│  Loja: Braga-Centro          │                                   │
-│  Funcionário: Ana R.         │ Produto         Qtd  P.Unit Total │
-│                              │ ─────────────── ──── ───── ─────  │
-│  Pesquisar produto:          │ Água 500ml       3   €0,60 €1,80  │
-│  [________________] [🔍]    │ Red Bull 250ml   1   €1,80 €1,80  │
-│                              │ Pão de Leite     2   €0,35 €0,70  │
-│  Resultados:                 │ ─────────────── ──── ───── ─────  │
-│  ┌────────────────────────┐  │ Subtotal:              €4,30      │
-│  │ 5601.. Água 500ml €0,60│  │ Desconto: [___%] [___€]  -€0,00  │
-│  │ 5600.. Água 1,5L  €1,20│  │ ─────────────────────────────    │
-│  │ 5699.. Coca-Cola  €1,50│  │ TOTAL:                 €4,30      │
-│  └────────────────────────┘  │                                   │
-│                              │  [🗑️ Limpar]  [✅ CONFIRMAR]     │
-└──────────────────────────────┴───────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│  🛒 PONTO DE VENDA   Loja: Braga-Centro | Ana R.                 │
+├─────────────────────────────────────┬─────────────────────────────┤
+│  PRODUTOS DISPONÍVEIS (stock > 0)   │  CARRINHO  🛒 3 itens       │
+│                                     │                             │
+│  [🔍 Pesquisar nome, código, cat ✕] │ Produto      Qtd  P.  Tot  │
+│  ──────────────────────────────     │ ──────────── ──── ─── ───   │
+│  Produto        Stock  Preço  [+]   │ Água 500ml    3  €0,60 €1,8 │
+│  ──────────── ─────── ───── ───     │ Red Bull       1  €1,80 €1,8│
+│  Água 500ml   🟡 8    €0,60  [+]   │ Pão Leite      2  €0,35 €0,7│
+│  Coca-Cola   ✅ 145   €1,50  [+]   │ ─────────────────────────── │
+│  Red Bull    🟡 5    €1,80  [+]    │ Subtotal:           €4,30   │
+│  Sumo Laranja ✅ 230  €0,90  [+]   │ Desconto (€): [_____]       │
+│  Pão de Leite ✅ 180  €0,35  [+]   │ ─────────────────────────── │
+│  Café Expres  ✅ 47   €0,80  [+]   │ TOTAL:              €4,30   │
+│                                     │                             │
+│  🟡 = Stock em alerta  ✅ = OK     │ [🗑️ Limpar] [✅ CONFIRMAR]  │
+└─────────────────────────────────────┴─────────────────────────────┘
 ```
+
+**RFs satisfeitos:** RF17 (registo de venda), RF18 (descontos), RF19 (recibo), RF20 (validação stock)  
+**RBAC:** Apenas **Funcionário** e **Gerente de Loja** acedem ao POS. Gestor da Cadeia não tem acesso.
 
 ---
 
@@ -212,15 +219,16 @@
 
 ## 9. Rastreabilidade Wireframes ↔ Requisitos
 
-| Ecrã | RFs Satisfeitos | Papel de Utilizador |
-|---|---|---|
-| Login | RF01, RF04, RF05 | Todos |
-| Dashboard Central | RF37, RF39, RF41, RF33 | Gestor da Cadeia |
-| Dashboard de Loja | RF38, RF13, RF14 | Gerente de Loja |
-| POS | RF17, RF18, RF19, RF20, RF21 | Funcionário |
-| Gestão de Stock | RF11, RF12, RF13, RF15, RF16 | Gerente de Loja |
-| Encomendas | RF24, RF25, RF26, RF27 | Gerente de Loja |
-| Relatórios | RF39, RF40, RF41, RF42 | Gestor, Gerente |
-| Admin – Utilizadores | RF03 | Gestor da Cadeia |
-| Admin – Produtos | RF06, RF07, RF08, RF09, RF10 | Gestor da Cadeia |
-| Faturas | RF28, RF29, RF30, RF31 | Gerente, Funcionário |
+| Ecrã | RFs Satisfeitos | Funcionário | Gerente de Loja | Gestor da Cadeia |
+|---|---|:---:|:---:|:---:|
+| Login | RF01, RF04, RF05 | ✅ | ✅ | ✅ |
+| Dashboard | RF37, RF38, RF39, RF41, RF33 | ✅ | ✅ | ✅ |
+| POS | RF17, RF18, RF19, RF20, RF21 | ✅ | ✅ | ❌ |
+| Gestão de Stock | RF11, RF12, RF13, RF15, RF16 | ❌ | ✅ | ✅ |
+| Encomendas | RF24, RF25, RF26, RF27 | ❌ | ✅ | ✅ |
+| Faturas | RF28, RF29, RF30, RF31 | ❌ | ✅ | ✅ |
+| Relatórios | RF39, RF40, RF41, RF42 | ❌ | ✅ | ✅ |
+| Consolidação | RF33, RF34, RF35, RF36 | ❌ | ❌ | ✅ |
+| Admin – Utilizadores | RF03 | ❌ | ❌ | ✅ |
+
+> **Legenda:** ✅ = tem acesso | ❌ = sem acesso (bloqueado via NavMenu e guard de página)

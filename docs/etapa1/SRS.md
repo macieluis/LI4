@@ -139,7 +139,7 @@ O SGCLC é um sistema de informação web multi-loja com uma arquitetura cliente
 > O sistema deve permitir que o preço de venda de um produto possa ser sobreposto ao nível de loja (preço base definido centralmente).
 
 **RF08 – Catálogo de Produtos**
-> O sistema deve disponibilizar um catálogo de produtos pesquisável por nome, código ou categoria.
+> O sistema deve disponibilizar um catálogo de produtos pesquisável por nome, código ou categoria. A pesquisa deve ser insensível a maiúsculas/minúsculas e a acentos (e.g., "cafe" encontra "Café", "AGUA" encontra "água").
 
 ---
 
