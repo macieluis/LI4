@@ -60,13 +60,9 @@ builder.Services.AddSession(opt =>
 var app = builder.Build();
 
 // ── Middleware ────────────────────────────────────────────────
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
+// HTTPS redirect desativado em desenvolvimento (sem certificado configurado)
+// Remove se usares certificado HTTPS em produção
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseSession();
 app.UseAntiforgery();

@@ -14,18 +14,47 @@
             </div>
 
             <ul class="nav nav-pills flex-column mb-auto gap-1">
+                @* Dashboard – todos vêem *@
                 <li><NavLink class="nav-link text-white" href="/dashboard" Match="NavLinkMatch.All"><i class="bi bi-speedometer2 me-2"></i>Dashboard</NavLink></li>
-                <li><NavLink class="nav-link text-white" href="/pos"><i class="bi bi-cart3 me-2"></i>Ponto de Venda</NavLink></li>
-                <li><NavLink class="nav-link text-white" href="/stock"><i class="bi bi-boxes me-2"></i>Stock</NavLink></li>
-                <li><NavLink class="nav-link text-white" href="/encomendas"><i class="bi bi-truck me-2"></i>Encomendas</NavLink></li>
-                <li><NavLink class="nav-link text-white" href="/faturas"><i class="bi bi-receipt me-2"></i>Faturas</NavLink></li>
 
+                @* POS – apenas Funcionário e Gerente de Loja (Gestor não vende) *@
+                @if (Session.IsFuncionario || Session.IsGerenteLoja)
+                {
+                    <li><NavLink class="nav-link text-white" href="/pos"><i class="bi bi-cart3 me-2"></i>Ponto de Venda</NavLink></li>
+                }
+
+                @* Stock – Gerente e Gestor (Funcionário não gere stock) *@
+                @if (Session.IsGerenteLoja || Session.IsGestorCadeia)
+                {
+                    <li><NavLink class="nav-link text-white" href="/stock"><i class="bi bi-boxes me-2"></i>Stock</NavLink></li>
+                }
+
+                @* Encomendas – Gerente e Gestor *@
+                @if (Session.IsGerenteLoja || Session.IsGestorCadeia)
+                {
+                    <li><NavLink class="nav-link text-white" href="/encomendas"><i class="bi bi-truck me-2"></i>Encomendas</NavLink></li>
+                }
+
+                @* Faturas – todos exceto Funcionário que não tem acesso à gestão de faturas *@
+                @if (Session.IsGerenteLoja || Session.IsGestorCadeia)
+                {
+                    <li><NavLink class="nav-link text-white" href="/faturas"><i class="bi bi-receipt me-2"></i>Faturas</NavLink></li>
+                }
+
+                @* Área Gestão – só Gestor da Cadeia *@
                 @if (Session.IsGestorCadeia)
                 {
-                    <li class="mt-3 px-2" style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Gestão</li>
+                    <li class="mt-3 px-2" style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Gestão Central</li>
                     <li><NavLink class="nav-link text-white" href="/relatorios"><i class="bi bi-bar-chart-line me-2"></i>Relatórios</NavLink></li>
                     <li><NavLink class="nav-link text-white" href="/consolidacao"><i class="bi bi-arrow-repeat me-2"></i>Consolidação</NavLink></li>
                     <li><NavLink class="nav-link text-white" href="/admin/utilizadores"><i class="bi bi-people me-2"></i>Utilizadores</NavLink></li>
+                }
+
+                @* Relatórios – Gerente pode ver relatórios da sua loja *@
+                @if (Session.IsGerenteLoja)
+                {
+                    <li class="mt-3 px-2" style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Relatórios</li>
+                    <li><NavLink class="nav-link text-white" href="/relatorios"><i class="bi bi-bar-chart-line me-2"></i>Relatórios</NavLink></li>
                 }
             </ul>
 

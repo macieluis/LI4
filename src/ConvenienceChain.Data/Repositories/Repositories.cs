@@ -38,10 +38,24 @@ public class ProdutoRepository : IProdutoRepository
         await _db.Produtos.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == id);
     public async Task<Produto?> GetByCodigoAsync(string codigo) =>
         await _db.Produtos.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Codigo == codigo);
-    public async Task<IEnumerable<Produto>> SearchAsync(string query) =>
-        await _db.Produtos.Include(p => p.Categoria)
-            .Where(p => p.Ativo && (p.Nome.Contains(query) || p.Codigo.Contains(query)))
+    public async Task<IEnumerable<Produto>> SearchAsync(string query) {
+        var q = Normalizar(query.Trim());
+        var all = await _db.Produtos.Include(p => p.Categoria)
+            .Where(p => p.Ativo)
             .ToListAsync();
+        return all.Where(p =>
+            Normalizar(p.Nome).Contains(q) ||
+            Normalizar(p.Codigo).Contains(q) ||
+            (p.Categoria != null && Normalizar(p.Categoria.Nome).Contains(q)));
+    }
+
+    /// <summary>Remove acentos e normaliza para lowercase. "café" → "cafe", "Ação" → "acao".</summary>
+    private static string Normalizar(string s) =>
+        new string(s.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                        != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray())
+        .ToLowerInvariant();
     public async Task<IEnumerable<Produto>> GetByCategoriaAsync(int categoriaId) =>
         await _db.Produtos.Include(p => p.Categoria)
             .Where(p => p.Ativo && p.CategoriaId == categoriaId)

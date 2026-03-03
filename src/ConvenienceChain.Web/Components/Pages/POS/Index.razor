@@ -11,7 +11,7 @@
 
 <div class="page-header">
     <h1><i class="bi bi-cart3 me-2 text-primary"></i>Ponto de Venda</h1>
-    <p class="text-muted mb-0">Loja: <strong>@Session.Nome</strong> | Funcionário: <strong>@Session.Nome</strong></p>
+    <p class="text-muted mb-0">Loja: <strong>@Session.LojaId</strong> | Utilizador: <strong>@Session.Nome</strong></p>
 </div>
 
 @if (vendaConcluida is not null)
@@ -27,39 +27,88 @@
 }
 
 <div class="row g-4">
-    <!-- Pesquisa de produtos -->
+    <!-- Pesquisa + Tabela de produtos -->
     <div class="col-md-5">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="fw-semibold mb-3"><i class="bi bi-search me-2"></i>Pesquisar Produto</h6>
-                <div class="input-group mb-3">
+            <div class="card-body d-flex flex-column">
+                <h6 class="fw-semibold mb-3"><i class="bi bi-search me-2"></i>Produtos Disponíveis</h6>
+
+                <!-- Barra de pesquisa -->
+                <div class="input-group mb-2">
                     <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                    <input class="form-control" placeholder="Código ou nome..." @bind="pesquisa" @oninput="PesquisarProdutos" />
+                    <input id="pos-search" class="form-control" placeholder="Pesquisar por nome, código ou categoria..."
+                           @bind="pesquisa" @oninput="PesquisarProdutos" autocomplete="off" />
+                    @if (!string.IsNullOrEmpty(pesquisa))
+                    {
+                        <button class="btn btn-outline-secondary" type="button" @onclick="LimparPesquisa" title="Limpar">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    }
                 </div>
 
-                @if (resultados.Any())
-                {
-                    <div class="list-group list-group-flush" style="max-height:350px;overflow-y:auto">
-                        @foreach (var p in resultados)
-                        {
-                            <button class="list-group-item list-group-item-action pos-product-row d-flex justify-content-between"
-                                    @onclick="() => AdicionarAoCarrinho(p)">
-                                <div>
-                                    <div class="fw-medium small">@p.Nome</div>
-                                    <div class="text-muted" style="font-size:.75rem">@p.Codigo | @p.Categoria?.Nome</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-bold text-primary">€@p.PrecoBaseVenda.ToString("N2")</div>
-                                    <div class="text-muted" style="font-size:.7rem">por @p.UnidadeMedida</div>
-                                </div>
-                            </button>
-                        }
-                    </div>
-                }
-                else if (!string.IsNullOrEmpty(pesquisa))
-                {
-                    <p class="text-muted text-center py-3"><i class="bi bi-search me-1"></i>Nenhum produto encontrado.</p>
-                }
+                <!-- Tabela de produtos com stock > 0 -->
+                <div class="table-responsive flex-grow-1" style="max-height:420px;overflow-y:auto">
+                    @if (a_carregar_produtos)
+                    {
+                        <div class="text-center text-muted py-4">
+                            <span class="spinner-border spinner-border-sm me-2"></span>A carregar...
+                        </div>
+                    }
+                    else if (!produtosComStock.Any())
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-box-seam fs-2 d-block mb-2 opacity-25"></i>
+                            @if (string.IsNullOrEmpty(pesquisa))
+                            {
+                                <span>Sem produtos com stock disponível.</span>
+                            }
+                            else
+                            {
+                                <span>Nenhum resultado para "<strong>@pesquisa</strong>".</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <table class="table table-hover table-sm align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Produto</th>
+                                    <th class="text-center" style="width:60px">Stock</th>
+                                    <th class="text-end" style="width:75px">Preço</th>
+                                    <th style="width:40px"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in produtosComStock)
+                                {
+                                    <tr class="pos-product-row" style="cursor:pointer" @onclick="() => AdicionarAoCarrinhoPorStock(item)">
+                                        <td>
+                                            <div class="fw-medium small">@item.NomeProduto</div>
+                                            <div class="text-muted" style="font-size:.72rem">@item.CodigoProduto
+                                                @if (!string.IsNullOrEmpty(item.Categoria))
+                                                {
+                                                    <span class="badge bg-secondary ms-1" style="font-size:.65rem">@item.Categoria</span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge @(item.EmAlerta ? "bg-warning text-dark" : "bg-success")">@item.Quantidade</span>
+                                        </td>
+                                        <td class="text-end small fw-semibold text-primary">€@((item.PrecoVendaLocal ?? item.PrecoBaseVenda).ToString("N2"))</td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-primary py-0 px-1" title="Adicionar"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick="() => AdicionarAoCarrinhoPorStock(item)">
+                                                <i class="bi bi-plus-lg"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -68,13 +117,18 @@
     <div class="col-md-7">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
-                <h6 class="fw-semibold mb-3"><i class="bi bi-cart-check me-2"></i>Carrinho</h6>
+                <h6 class="fw-semibold mb-3"><i class="bi bi-cart-check me-2"></i>Carrinho
+                    @if (carrinho.Any())
+                    {
+                        <span class="badge bg-primary ms-1">@carrinho.Count</span>
+                    }
+                </h6>
 
                 @if (!carrinho.Any())
                 {
                     <div class="text-center text-muted py-5 flex-grow-1">
                         <i class="bi bi-cart3 fs-1 d-block mb-2 opacity-25"></i>
-                        Adicione produtos ao carrinho
+                        Clique num produto para adicionar ao carrinho
                     </div>
                 }
                 else
@@ -141,29 +195,78 @@
 
 @code {
     private string pesquisa = "";
-    private List<Core.Entities.Produto> resultados = new();
+    private List<StockDto> todosOsStocks = new();
+    private List<StockDto> produtosComStock = new();
     private List<CarrinhoItem> carrinho = new();
     private decimal desconto = 0;
     private bool a_processar;
+    private bool a_carregar_produtos = true;
     private string? erroVenda;
     private VendaDto? vendaConcluida;
 
     private decimal Subtotal => carrinho.Sum(i => i.Quantidade * i.PrecoUnit);
     private decimal Total => Math.Max(0, Subtotal - desconto);
 
-    private async Task PesquisarProdutos(ChangeEventArgs e)
+    protected override async Task OnInitializedAsync()
     {
-        pesquisa = e.Value?.ToString() ?? "";
-        if (pesquisa.Length < 2) { resultados.Clear(); return; }
-        var todos = await ProdutoSvc.SearchAsync(pesquisa);
-        resultados = todos.Take(8).ToList();
+        a_carregar_produtos = true;
+        if (Session.LojaId.HasValue)
+        {
+            todosOsStocks = (await StockSvc.GetStockLojaAsync(Session.LojaId.Value))
+                .Where(s => s.Quantidade > 0)
+                .OrderBy(s => s.NomeProduto)
+                .ToList();
+            produtosComStock = todosOsStocks;
+        }
+        a_carregar_produtos = false;
     }
 
-    private void AdicionarAoCarrinho(Core.Entities.Produto p)
+    private void PesquisarProdutos(ChangeEventArgs e)
     {
-        var existing = carrinho.FirstOrDefault(i => i.ProdutoId == p.Id);
+        pesquisa = e.Value?.ToString() ?? "";
+        AplicarFiltro();
+    }
+
+    private void LimparPesquisa()
+    {
+        pesquisa = "";
+        produtosComStock = todosOsStocks;
+    }
+
+    private void AplicarFiltro()
+    {
+        if (string.IsNullOrWhiteSpace(pesquisa))
+        {
+            produtosComStock = todosOsStocks;
+            return;
+        }
+        var q = Normalizar(pesquisa.Trim());
+        produtosComStock = todosOsStocks.Where(s =>
+            Normalizar(s.NomeProduto).Contains(q) ||
+            Normalizar(s.CodigoProduto).Contains(q) ||
+            (s.Categoria != null && Normalizar(s.Categoria).Contains(q))
+        ).ToList();
+    }
+
+    /// <summary>Remove acentos e normaliza para lowercase. "café" → "cafe".</summary>
+    private static string Normalizar(string s) =>
+        new string(s.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                        != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray())
+        .ToLowerInvariant();
+
+    private void AdicionarAoCarrinhoPorStock(StockDto s)
+    {
+        var existing = carrinho.FirstOrDefault(i => i.ProdutoId == s.ProdutoId);
         if (existing is not null) { existing.Quantidade++; return; }
-        carrinho.Add(new CarrinhoItem { ProdutoId = p.Id, Nome = p.Nome, PrecoUnit = p.PrecoBaseVenda, Quantidade = 1 });
+        carrinho.Add(new CarrinhoItem
+        {
+            ProdutoId = s.ProdutoId,
+            Nome = s.NomeProduto,
+            PrecoUnit = s.PrecoVendaLocal ?? s.PrecoBaseVenda,
+            Quantidade = 1
+        });
     }
 
     private void AlterarQuantidade(CarrinhoItem item, int qty)
@@ -184,6 +287,12 @@
                 Session.UserId!,
                 carrinho.Select(i => new LinhaVendaDto(i.ProdutoId, i.Quantidade, i.PrecoUnit, 0)));
             vendaConcluida = await SalesSvc.CreateSaleAsync(createDto);
+            // Recarregar stock após venda
+            todosOsStocks = (await StockSvc.GetStockLojaAsync(Session.LojaId!.Value))
+                .Where(s => s.Quantidade > 0)
+                .OrderBy(s => s.NomeProduto)
+                .ToList();
+            AplicarFiltro();
             carrinho.Clear();
             desconto = 0;
         }
@@ -191,7 +300,11 @@
         finally { a_processar = false; }
     }
 
-    private void NovaVenda() { carrinho.Clear(); desconto = 0; vendaConcluida = null; erroVenda = null; pesquisa = ""; resultados.Clear(); }
+    private void NovaVenda()
+    {
+        carrinho.Clear(); desconto = 0; vendaConcluida = null; erroVenda = null;
+        pesquisa = ""; produtosComStock = todosOsStocks;
+    }
 
     private class CarrinhoItem
     {

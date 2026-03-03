@@ -69,7 +69,7 @@
     private async Task HandleLogin()
     {
         a_carregar = true; erro = null;
-        var result = await AuthSvc.LoginAsync(model.Email, model.Password);
+        var result = await AuthSvc.LoginAsync(model.Email.Trim(), model.Password.Trim());
         if (result is null)
         {
             erro = "Email ou password incorretos. Verifique as suas credenciais.";
