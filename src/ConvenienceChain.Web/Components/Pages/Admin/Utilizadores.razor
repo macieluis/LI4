@@ -9,15 +9,26 @@
 
 <PageTitle>Gestão de Utilizadores – SGCLC</PageTitle>
 
-@if (!Session.IsAuthenticated || !Session.IsGestorCadeia) { Nav.NavigateTo("/dashboard"); return; }
+@* Apenas Gestor da Cadeia e Gerente de Loja podem aceder *@
+@if (!Session.IsAuthenticated || (!Session.IsGestorCadeia && !Session.IsGerenteLoja))
+{
+    Nav.NavigateTo("/dashboard");
+    return;
+}
 
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1><i class="bi bi-people me-2 text-primary"></i>Utilizadores</h1>
-        <p class="text-muted mb-0">Gestão de contas de acesso ao sistema</p>
+        <h1><i class="bi bi-people me-2 text-primary"></i>
+            @if (Session.IsGerenteLoja) { <text>Funcionários da Minha Loja</text> }
+            else { <text>Utilizadores</text> }
+        </h1>
+        <p class="text-muted mb-0">
+            @if (Session.IsGerenteLoja) { <text>Gerir funcionários da sua loja</text> }
+            else { <text>Gestão de contas de acesso ao sistema</text> }
+        </p>
     </div>
     <button class="btn btn-primary" @onclick="() => { modalAtivo = true; editando = null; ResetForm(); }">
-        <i class="bi bi-plus-lg me-1"></i>Novo Utilizador
+        <i class="bi bi-plus-lg me-1"></i>Novo Funcionário
     </button>
 </div>
 
@@ -40,7 +51,7 @@ else
                         <th>Nome</th>
                         <th>Email</th>
                         <th>Papel</th>
-                        <th>Loja</th>
+                        @if (Session.IsGestorCadeia) { <th>Loja</th> }
                         <th>Estado</th>
                         <th class="text-end">Ações</th>
                     </tr>
@@ -52,7 +63,7 @@ else
                             <td class="fw-medium">@u.Nome</td>
                             <td class="small text-muted">@u.Email</td>
                             <td><span class="badge bg-secondary">@u.Papel</span></td>
-                            <td class="small">@(u.Loja?.Nome ?? "–")</td>
+                            @if (Session.IsGestorCadeia) { <td class="small">@(u.Loja?.Nome ?? "–")</td> }
                             <td>
                                 @if (u.Ativo)
                                 { <span class="badge bg-success">Ativo</span> }
@@ -85,7 +96,7 @@ else
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">@(editando is null ? "Novo Utilizador" : "Editar Utilizador")</h5>
+                    <h5 class="modal-title">@(editando is null ? "Novo Funcionário" : "Editar Funcionário")</h5>
                     <button type="button" class="btn-close" @onclick="() => modalAtivo = false"></button>
                 </div>
                 <div class="modal-body">
@@ -110,12 +121,21 @@ else
                     }
                     <div class="mb-3">
                         <label class="form-label">Papel</label>
-                        <select class="form-select" @bind="formPapel">
-                            @foreach (var p in Enum.GetValues<PapelUtilizador>())
-                            {
-                                <option value="@p">@p</option>
-                            }
-                        </select>
+                        @if (Session.IsGerenteLoja)
+                        {
+                            @* Gerente só pode criar Funcionários *@
+                            <input class="form-control" value="Funcionario" disabled />
+                        }
+                        else
+                        {
+                            @* Gestor pode criar qualquer papel *@
+                            <select class="form-select" @bind="formPapel">
+                                @foreach (var p in Enum.GetValues<PapelUtilizador>())
+                                {
+                                    <option value="@p">@p</option>
+                                }
+                            </select>
+                        }
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -147,12 +167,22 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsAuthenticated || !Session.IsGestorCadeia) return;
-        utilizadores = (await UtilSvc.GetAllAsync()).ToList();
+        if (!Session.IsAuthenticated) return;
+
+        if (Session.IsGestorCadeia)
+            utilizadores = (await UtilSvc.GetAllAsync()).ToList();
+        else if (Session.IsGerenteLoja && Session.LojaId.HasValue)
+            utilizadores = (await UtilSvc.GetByLojaAsync(Session.LojaId.Value)).ToList();
+
         a_carregar = false;
     }
 
-    private void ResetForm() { formNome = ""; formEmail = ""; formPassword = ""; formPapel = PapelUtilizador.Funcionario; erroModal = null; }
+    private void ResetForm()
+    {
+        formNome = ""; formEmail = ""; formPassword = "";
+        formPapel = PapelUtilizador.Funcionario;
+        erroModal = null;
+    }
 
     private void EditarUtilizador(Utilizador u)
     {
@@ -171,20 +201,32 @@ else
         if (string.IsNullOrWhiteSpace(formEmail)) { erroModal = "Email é obrigatório."; return; }
         if (editando is null && string.IsNullOrWhiteSpace(formPassword)) { erroModal = "Password é obrigatória."; return; }
 
+        // Gerente só pode criar Funcionários
+        var papel = Session.IsGerenteLoja ? PapelUtilizador.Funcionario : formPapel;
+        // Gerente cria sempre para a sua própria loja
+        var lojaId = Session.IsGerenteLoja ? Session.LojaId : null;
+
         a_guardar = true;
         try
         {
             if (editando is null)
             {
-                await UtilSvc.CreateAsync(new Core.DTOs.CreateUtilizadorDto(formNome, formEmail, formPassword, formPapel, null));
-                mensagem = $"Utilizador '{formNome}' criado com sucesso.";
+                await UtilSvc.CreateAsync(new Core.DTOs.CreateUtilizadorDto(formNome, formEmail, formPassword, papel, lojaId));
+                mensagem = $"Funcionário '{formNome}' criado com sucesso.";
             }
             else
             {
-                await UtilSvc.UpdateAsync(editando.Id, new Core.DTOs.UpdateUtilizadorDto(formNome, formPapel, editando.LojaId));
+                var lojaIdUpdate = Session.IsGerenteLoja ? Session.LojaId : editando.LojaId;
+                await UtilSvc.UpdateAsync(editando.Id, new Core.DTOs.UpdateUtilizadorDto(formNome, papel, lojaIdUpdate));
                 mensagem = $"Utilizador '{formNome}' atualizado.";
             }
-            utilizadores = (await UtilSvc.GetAllAsync()).ToList();
+
+            // Recarregar lista filtrada
+            if (Session.IsGestorCadeia)
+                utilizadores = (await UtilSvc.GetAllAsync()).ToList();
+            else if (Session.IsGerenteLoja && Session.LojaId.HasValue)
+                utilizadores = (await UtilSvc.GetByLojaAsync(Session.LojaId.Value)).ToList();
+
             modalAtivo = false;
         }
         catch (Exception ex)
@@ -197,7 +239,12 @@ else
     private async Task Desativar(string id)
     {
         await UtilSvc.DeactivateAsync(id);
-        utilizadores = (await UtilSvc.GetAllAsync()).ToList();
-        mensagem = "Utilizador desativado.";
+
+        if (Session.IsGestorCadeia)
+            utilizadores = (await UtilSvc.GetAllAsync()).ToList();
+        else if (Session.IsGerenteLoja && Session.LojaId.HasValue)
+            utilizadores = (await UtilSvc.GetByLojaAsync(Session.LojaId.Value)).ToList();
+
+        mensagem = "Funcionário desativado.";
     }
 }

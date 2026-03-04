@@ -89,6 +89,7 @@ public interface IReportService
 public interface IUtilizadorService
 {
     Task<IEnumerable<Utilizador>> GetAllAsync();
+    Task<IEnumerable<Utilizador>> GetByLojaAsync(int lojaId);
     Task<Utilizador?> GetByIdAsync(string id);
     Task<Utilizador> CreateAsync(CreateUtilizadorDto dto);
     Task UpdateAsync(string id, UpdateUtilizadorDto dto);

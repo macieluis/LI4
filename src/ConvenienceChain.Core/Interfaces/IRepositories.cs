@@ -81,6 +81,7 @@ public interface IConsolidacaoRepository
 public interface IUtilizadorRepository
 {
     Task<IEnumerable<Utilizador>> GetAllAsync();
+    Task<IEnumerable<Utilizador>> GetByLojaAsync(int lojaId);
     Task<Utilizador?> GetByIdAsync(string id);
     Task<Utilizador?> GetByEmailAsync(string email);
     Task<Utilizador> AddAsync(Utilizador utilizador);

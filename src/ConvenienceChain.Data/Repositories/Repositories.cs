@@ -201,6 +201,10 @@ public class UtilizadorRepository : IUtilizadorRepository
 
     public async Task<IEnumerable<Utilizador>> GetAllAsync() =>
         await _db.Utilizadores.Include(u => u.Loja).ToListAsync();
+    public async Task<IEnumerable<Utilizador>> GetByLojaAsync(int lojaId) =>
+        await _db.Utilizadores.Include(u => u.Loja)
+            .Where(u => u.LojaId == lojaId && u.Papel == Core.Enums.PapelUtilizador.Funcionario)
+            .ToListAsync();
     public async Task<Utilizador?> GetByIdAsync(string id) =>
         await _db.Utilizadores.Include(u => u.Loja).FirstOrDefaultAsync(u => u.Id == id);
     public async Task<Utilizador?> GetByEmailAsync(string email) =>

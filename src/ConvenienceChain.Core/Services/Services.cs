@@ -540,6 +540,7 @@ public class UtilizadorService : IUtilizadorService
     public UtilizadorService(IUtilizadorRepository repo) => _repo = repo;
 
     public async Task<IEnumerable<Utilizador>> GetAllAsync() => await _repo.GetAllAsync();
+    public async Task<IEnumerable<Utilizador>> GetByLojaAsync(int lojaId) => await _repo.GetByLojaAsync(lojaId);
     public async Task<Utilizador?> GetByIdAsync(string id) => await _repo.GetByIdAsync(id);
 
     public async Task<Utilizador> CreateAsync(CreateUtilizadorDto dto)
