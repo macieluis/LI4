@@ -9,7 +9,6 @@
 
 <PageTitle>Gestão de Utilizadores – SGCLC</PageTitle>
 
-@* Apenas Gestor da Cadeia e Gerente de Loja podem aceder *@
 @if (!Session.IsAuthenticated || (!Session.IsGestorCadeia && !Session.IsGerenteLoja))
 {
     Nav.NavigateTo("/dashboard");
@@ -18,23 +17,52 @@
 
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1><i class="bi bi-people me-2 text-primary"></i>
-            @if (Session.IsGerenteLoja) { <text>Funcionários da Minha Loja</text> }
-            else { <text>Utilizadores</text> }
+        <h1>
+            <i class="bi bi-people me-2 text-primary"></i>
+            @(Session.IsGerenteLoja ? "Funcionários da Minha Loja" : "Gestão de Utilizadores")
         </h1>
         <p class="text-muted mb-0">
-            @if (Session.IsGerenteLoja) { <text>Gerir funcionários da sua loja</text> }
-            else { <text>Gestão de contas de acesso ao sistema</text> }
+            @(Session.IsGerenteLoja
+                ? "Gerir contas dos funcionários da sua loja"
+                : "Administração completa de contas de acesso ao sistema")
         </p>
     </div>
-    <button class="btn btn-primary" @onclick="() => { modalAtivo = true; editando = null; ResetForm(); }">
-        <i class="bi bi-plus-lg me-1"></i>Novo Funcionário
+    <button class="btn btn-primary" @onclick="AbrirNovo">
+        <i class="bi bi-plus-lg me-1"></i>Novo @(Session.IsGerenteLoja ? "Funcionário" : "Utilizador")
     </button>
 </div>
 
 @if (!string.IsNullOrEmpty(mensagem))
 {
-    <div class="alert alert-success">@mensagem</div>
+    <div class="alert alert-success alert-dismissible">
+        <i class="bi bi-check-circle me-2"></i>@mensagem
+        <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+    </div>
+}
+
+@* Estatísticas rápidas *@
+@if (!a_carregar && utilizadores.Any())
+{
+    <div class="row g-3 mb-4">
+        <div class="col-auto">
+            <div class="card border-0 shadow-sm px-4 py-3 text-center">
+                <div class="fw-bold fs-4 text-primary">@utilizadores.Count</div>
+                <div class="small text-muted">Total</div>
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="card border-0 shadow-sm px-4 py-3 text-center">
+                <div class="fw-bold fs-4 text-success">@utilizadores.Count(u => u.Ativo)</div>
+                <div class="small text-muted">Ativos</div>
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="card border-0 shadow-sm px-4 py-3 text-center">
+                <div class="fw-bold fs-4 text-danger">@utilizadores.Count(u => !u.Ativo)</div>
+                <div class="small text-muted">Inativos</div>
+            </div>
+        </div>
+    </div>
 }
 
 @if (a_carregar)
@@ -45,13 +73,15 @@ else
 {
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Nome</th>
                         <th>Email</th>
+                        <th>Telefone</th>
                         <th>Papel</th>
                         @if (Session.IsGestorCadeia) { <th>Loja</th> }
+                        <th>Criado em</th>
                         <th>Estado</th>
                         <th class="text-end">Ações</th>
                     </tr>
@@ -59,11 +89,15 @@ else
                 <tbody>
                     @foreach (var u in utilizadores)
                     {
-                        <tr>
+                        <tr class="@(!u.Ativo ? "table-secondary text-muted" : "")">
                             <td class="fw-medium">@u.Nome</td>
-                            <td class="small text-muted">@u.Email</td>
-                            <td><span class="badge bg-secondary">@u.Papel</span></td>
-                            @if (Session.IsGestorCadeia) { <td class="small">@(u.Loja?.Nome ?? "–")</td> }
+                            <td class="small">@u.Email</td>
+                            <td class="small">@(u.Telefone ?? "—")</td>
+                            <td>
+                                <span class="badge @BadgePapel(u.Papel)">@u.Papel</span>
+                            </td>
+                            @if (Session.IsGestorCadeia) { <td class="small">@(u.Loja?.Nome ?? "—")</td> }
+                            <td class="small text-muted">@u.CriadoEm.ToString("dd/MM/yyyy")</td>
                             <td>
                                 @if (u.Ativo)
                                 { <span class="badge bg-success">Ativo</span> }
@@ -71,15 +105,32 @@ else
                                 { <span class="badge bg-danger">Inativo</span> }
                             </td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditarUtilizador(u)">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                @if (u.Ativo)
-                                {
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Desativar(u.Id)">
-                                        <i class="bi bi-person-x"></i>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info" @onclick="() => VerPerfil(u)" title="Ver perfil">
+                                        <i class="bi bi-person-lines-fill"></i>
                                     </button>
-                                }
+                                    <button class="btn btn-outline-primary" @onclick="() => AbrirEditar(u)" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" @onclick="() => AbrirResetPassword(u)" title="Redefinir password">
+                                        <i class="bi bi-key"></i>
+                                    </button>
+                                    @if (u.Ativo)
+                                    {
+                                        <button class="btn btn-outline-secondary" @onclick="() => Desativar(u)" title="Desativar">
+                                            <i class="bi bi-person-dash"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-success" @onclick="() => Reativar(u)" title="Reativar">
+                                            <i class="bi bi-person-check"></i>
+                                        </button>
+                                    }
+                                    <button class="btn btn-outline-danger" @onclick="() => PedirConfirmacaoEliminar(u)" title="Eliminar definitivamente">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -89,60 +140,227 @@ else
     </div>
 }
 
-<!-- Modal Criar/Editar -->
-@if (modalAtivo)
+<!-- ═══════════════════════════════════════════════════
+     MODAL — Criar / Editar
+════════════════════════════════════════════════════ -->
+@if (modalEditar)
 {
-    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.4)">
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi @(editando is null ? "bi-person-plus" : "bi-pencil-square") me-2"></i>
+                        @(editando is null ? "Novo " + (Session.IsGerenteLoja ? "Funcionário" : "Utilizador") : "Editar " + editando.Nome)
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="() => modalEditar = false"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(erroModal))
+                    {
+                        <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-2"></i>@erroModal</div>
+                    }
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Nome completo <span class="text-danger">*</span></label>
+                            <input class="form-control" @bind="formNome" placeholder="Nome e apelido" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Email <span class="text-danger">*</span></label>
+                            <input class="form-control" type="email" @bind="formEmail" placeholder="email@quickmart.pt" />
+                        </div>
+                        @if (editando is null)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Password <span class="text-danger">*</span></label>
+                                <input class="form-control" type="password" @bind="formPassword" placeholder="Mínimo 6 caracteres" />
+                            </div>
+                        }
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Telefone</label>
+                            <input class="form-control" @bind="formTelefone" placeholder="+351 9xx xxx xxx" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Papel</label>
+                            @if (Session.IsGerenteLoja)
+                            {
+                                <input class="form-control bg-light" value="Funcionario" disabled />
+                            }
+                            else
+                            {
+                                <select class="form-select" @bind="formPapel">
+                                    @foreach (var p in Enum.GetValues<PapelUtilizador>())
+                                    {
+                                        <option value="@p">@p</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                        @if (Session.IsGestorCadeia)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">ID da Loja</label>
+                                <input class="form-control" type="number" @bind="formLojaId" placeholder="(deixar vazio = sem loja)" />
+                            </div>
+                        }
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Notas internas</label>
+                            <textarea class="form-control" @bind="formNotas" rows="2"
+                                      placeholder="Observações sobre este utilizador (visível apenas para administradores)"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalEditar = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="Guardar" disabled="@a_guardar">
+                        @if (a_guardar) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-floppy me-1"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL — Ver Perfil Completo
+════════════════════════════════════════════════════ -->
+@if (modalPerfil && perfilUtilizador is not null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-circle me-2"></i>Perfil — @perfilUtilizador.Nome</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalPerfil = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <div class="col-md-2 text-center">
+                            <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center"
+                                 style="width:64px;height:64px;">
+                                <i class="bi bi-person-fill fs-3 text-white"></i>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge @BadgePapel(perfilUtilizador.Papel)">@perfilUtilizador.Papel</span>
+                            </div>
+                        </div>
+                        <div class="col-md-10">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tbody>
+                                    <tr><th class="text-muted" style="width:140px">ID</th><td><code class="small">@perfilUtilizador.Id</code></td></tr>
+                                    <tr><th class="text-muted">Nome</th><td class="fw-medium">@perfilUtilizador.Nome</td></tr>
+                                    <tr><th class="text-muted">Email</th><td>@perfilUtilizador.Email</td></tr>
+                                    <tr><th class="text-muted">Telefone</th><td>@(perfilUtilizador.Telefone ?? "—")</td></tr>
+                                    <tr><th class="text-muted">Loja</th><td>@(perfilUtilizador.Loja?.Nome ?? "—")</td></tr>
+                                    <tr>
+                                        <th class="text-muted">Estado</th>
+                                        <td>
+                                            @if (perfilUtilizador.Ativo)
+                                            { <span class="badge bg-success">Ativo</span> }
+                                            else
+                                            { <span class="badge bg-danger">Inativo</span> }
+                                        </td>
+                                    </tr>
+                                    <tr><th class="text-muted">Criado em</th><td>@perfilUtilizador.CriadoEm.ToString("dd/MM/yyyy HH:mm") UTC</td></tr>
+                                    @if (!string.IsNullOrEmpty(perfilUtilizador.Notas))
+                                    {
+                                        <tr>
+                                            <th class="text-muted">Notas</th>
+                                            <td class="text-muted fst-italic">@perfilUtilizador.Notas</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-3 mb-0 py-2 small">
+                        <i class="bi bi-shield-lock me-1"></i>
+                        A password é <strong>armazenada em formato hash BCrypt</strong> e não pode ser visualizada.
+                        Se necessário, use <strong>"Redefinir Password"</strong> para criar uma nova.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalPerfil = false">Fechar</button>
+                    <button class="btn btn-outline-primary" @onclick="() => { modalPerfil = false; AbrirEditar(perfilUtilizador); }">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </button>
+                    <button class="btn btn-outline-warning" @onclick="() => { modalPerfil = false; AbrirResetPassword(perfilUtilizador); }">
+                        <i class="bi bi-key me-1"></i>Redefinir Password
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL — Redefinir Password
+════════════════════════════════════════════════════ -->
+@if (modalResetPassword && utilizadorResetPwd is not null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">@(editando is null ? "Novo Funcionário" : "Editar Funcionário")</h5>
-                    <button type="button" class="btn-close" @onclick="() => modalAtivo = false"></button>
+                    <h5 class="modal-title"><i class="bi bi-key me-2 text-warning"></i>Redefinir Password — @utilizadorResetPwd.Nome</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalResetPassword = false"></button>
                 </div>
                 <div class="modal-body">
                     @if (!string.IsNullOrEmpty(erroModal))
                     {
                         <div class="alert alert-danger py-2">@erroModal</div>
                     }
-                    <div class="mb-3">
-                        <label class="form-label">Nome</label>
-                        <input class="form-control" @bind="formNome" placeholder="Nome completo" />
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        A password original não é recuperável — foi armazenada como hash BCrypt. Defina uma nova password para este utilizador.
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input class="form-control" type="email" @bind="formEmail" placeholder="email@quickmart.pt" />
+                        <label class="form-label fw-medium">Nova Password <span class="text-danger">*</span></label>
+                        <input class="form-control" type="password" @bind="novaPassword" placeholder="Mínimo 6 caracteres" />
                     </div>
-                    @if (editando is null)
-                    {
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input class="form-control" type="password" @bind="formPassword" />
-                        </div>
-                    }
                     <div class="mb-3">
-                        <label class="form-label">Papel</label>
-                        @if (Session.IsGerenteLoja)
-                        {
-                            @* Gerente só pode criar Funcionários *@
-                            <input class="form-control" value="Funcionario" disabled />
-                        }
-                        else
-                        {
-                            @* Gestor pode criar qualquer papel *@
-                            <select class="form-select" @bind="formPapel">
-                                @foreach (var p in Enum.GetValues<PapelUtilizador>())
-                                {
-                                    <option value="@p">@p</option>
-                                }
-                            </select>
-                        }
+                        <label class="form-label fw-medium">Confirmar Password <span class="text-danger">*</span></label>
+                        <input class="form-control" type="password" @bind="confirmarPassword" />
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => modalAtivo = false">Cancelar</button>
-                    <button class="btn btn-primary" @onclick="Guardar" disabled="@a_guardar">
+                    <button class="btn btn-secondary" @onclick="() => modalResetPassword = false">Cancelar</button>
+                    <button class="btn btn-warning" @onclick="ResetPassword" disabled="@a_guardar">
                         @if (a_guardar) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                        Guardar
+                        <i class="bi bi-key me-1"></i>Redefinir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL — Confirmação de Eliminação
+════════════════════════════════════════════════════ -->
+@if (modalConfirmarEliminar && utilizadorAEliminar is not null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Eliminar Utilizador</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => modalConfirmarEliminar = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Está prestes a <strong>eliminar definitivamente</strong> a conta de:</p>
+                    <div class="alert alert-danger">
+                        <strong>@utilizadorAEliminar.Nome</strong> (@utilizadorAEliminar.Email)<br />
+                        <span class="small">Papel: @utilizadorAEliminar.Papel | Loja: @(utilizadorAEliminar.Loja?.Nome ?? "—")</span>
+                    </div>
+                    <p class="text-danger fw-semibold mb-0">⚠️ Esta operação é irreversível. Todos os dados desta conta serão apagados permanentemente.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalConfirmarEliminar = false">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="EliminarDefinitivo" disabled="@a_guardar">
+                        @if (a_guardar) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-trash3 me-1"></i>Eliminar Definitivamente
                     </button>
                 </div>
             </div>
@@ -153,45 +371,89 @@ else
 @code {
     private List<Utilizador> utilizadores = new();
     private bool a_carregar = true;
-    private bool modalAtivo;
     private bool a_guardar;
-    private Utilizador? editando;
     private string? mensagem;
     private string? erroModal;
 
-    // Form fields
+    // Modal estados
+    private bool modalEditar;
+    private bool modalPerfil;
+    private bool modalResetPassword;
+    private bool modalConfirmarEliminar;
+
+    // Utilizadores selecionados para ações
+    private Utilizador? editando;
+    private Utilizador? perfilUtilizador;
+    private Utilizador? utilizadorResetPwd;
+    private Utilizador? utilizadorAEliminar;
+
+    // Form — Criar/Editar
     private string formNome = "";
     private string formEmail = "";
     private string formPassword = "";
+    private string? formTelefone;
+    private string? formNotas;
     private PapelUtilizador formPapel = PapelUtilizador.Funcionario;
+    private int? formLojaId;
+
+    // Form — Reset Password
+    private string novaPassword = "";
+    private string confirmarPassword = "";
 
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) return;
+        await CarregarUtilizadores();
+        a_carregar = false;
+    }
 
+    private async Task CarregarUtilizadores()
+    {
         if (Session.IsGestorCadeia)
             utilizadores = (await UtilSvc.GetAllAsync()).ToList();
         else if (Session.IsGerenteLoja && Session.LojaId.HasValue)
             utilizadores = (await UtilSvc.GetByLojaAsync(Session.LojaId.Value)).ToList();
-
-        a_carregar = false;
     }
 
-    private void ResetForm()
+    private void AbrirNovo()
     {
+        editando = null;
         formNome = ""; formEmail = ""; formPassword = "";
+        formTelefone = null; formNotas = null;
         formPapel = PapelUtilizador.Funcionario;
+        formLojaId = Session.IsGerenteLoja ? Session.LojaId : null;
         erroModal = null;
+        modalEditar = true;
     }
 
-    private void EditarUtilizador(Utilizador u)
+    private void AbrirEditar(Utilizador u)
     {
         editando = u;
-        formNome = u.Nome;
-        formEmail = u.Email;
-        formPapel = u.Papel;
+        formNome = u.Nome; formEmail = u.Email; formPassword = "";
+        formTelefone = u.Telefone; formNotas = u.Notas;
+        formPapel = u.Papel; formLojaId = u.LojaId;
         erroModal = null;
-        modalAtivo = true;
+        modalEditar = true;
+    }
+
+    private void VerPerfil(Utilizador u)
+    {
+        perfilUtilizador = u;
+        modalPerfil = true;
+    }
+
+    private void AbrirResetPassword(Utilizador u)
+    {
+        utilizadorResetPwd = u;
+        novaPassword = ""; confirmarPassword = "";
+        erroModal = null;
+        modalResetPassword = true;
+    }
+
+    private void PedirConfirmacaoEliminar(Utilizador u)
+    {
+        utilizadorAEliminar = u;
+        modalConfirmarEliminar = true;
     }
 
     private async Task Guardar()
@@ -200,51 +462,86 @@ else
         if (string.IsNullOrWhiteSpace(formNome)) { erroModal = "Nome é obrigatório."; return; }
         if (string.IsNullOrWhiteSpace(formEmail)) { erroModal = "Email é obrigatório."; return; }
         if (editando is null && string.IsNullOrWhiteSpace(formPassword)) { erroModal = "Password é obrigatória."; return; }
+        if (editando is null && formPassword.Length < 6) { erroModal = "Password deve ter pelo menos 6 caracteres."; return; }
 
-        // Gerente só pode criar Funcionários
         var papel = Session.IsGerenteLoja ? PapelUtilizador.Funcionario : formPapel;
-        // Gerente cria sempre para a sua própria loja
-        var lojaId = Session.IsGerenteLoja ? Session.LojaId : null;
+        var lojaId = Session.IsGerenteLoja ? Session.LojaId : formLojaId;
 
         a_guardar = true;
         try
         {
             if (editando is null)
             {
-                await UtilSvc.CreateAsync(new Core.DTOs.CreateUtilizadorDto(formNome, formEmail, formPassword, papel, lojaId));
-                mensagem = $"Funcionário '{formNome}' criado com sucesso.";
+                await UtilSvc.CreateAsync(new Core.DTOs.CreateUtilizadorDto(
+                    formNome, formEmail, formPassword, papel, lojaId, formTelefone, formNotas));
+                mensagem = $"✔ Utilizador '{formNome}' criado com sucesso.";
             }
             else
             {
-                var lojaIdUpdate = Session.IsGerenteLoja ? Session.LojaId : editando.LojaId;
-                await UtilSvc.UpdateAsync(editando.Id, new Core.DTOs.UpdateUtilizadorDto(formNome, papel, lojaIdUpdate));
-                mensagem = $"Utilizador '{formNome}' atualizado.";
+                await UtilSvc.UpdateAsync(editando.Id, new Core.DTOs.UpdateUtilizadorDto(
+                    formNome, papel, lojaId, formTelefone, formNotas));
+                mensagem = $"✔ Utilizador '{formNome}' atualizado.";
             }
-
-            // Recarregar lista filtrada
-            if (Session.IsGestorCadeia)
-                utilizadores = (await UtilSvc.GetAllAsync()).ToList();
-            else if (Session.IsGerenteLoja && Session.LojaId.HasValue)
-                utilizadores = (await UtilSvc.GetByLojaAsync(Session.LojaId.Value)).ToList();
-
-            modalAtivo = false;
+            await CarregarUtilizadores();
+            modalEditar = false;
         }
-        catch (Exception ex)
-        {
-            erroModal = ex.Message;
-        }
+        catch (Exception ex) { erroModal = ex.Message; }
         a_guardar = false;
     }
 
-    private async Task Desativar(string id)
+    private async Task Desativar(Utilizador u)
     {
-        await UtilSvc.DeactivateAsync(id);
-
-        if (Session.IsGestorCadeia)
-            utilizadores = (await UtilSvc.GetAllAsync()).ToList();
-        else if (Session.IsGerenteLoja && Session.LojaId.HasValue)
-            utilizadores = (await UtilSvc.GetByLojaAsync(Session.LojaId.Value)).ToList();
-
-        mensagem = "Funcionário desativado.";
+        await UtilSvc.DeactivateAsync(u.Id);
+        mensagem = $"✔ '{u.Nome}' desativado.";
+        await CarregarUtilizadores();
     }
+
+    private async Task Reativar(Utilizador u)
+    {
+        await UtilSvc.ReactivateAsync(u.Id);
+        mensagem = $"✔ '{u.Nome}' reativado.";
+        await CarregarUtilizadores();
+    }
+
+    private async Task ResetPassword()
+    {
+        erroModal = null;
+        if (string.IsNullOrWhiteSpace(novaPassword) || novaPassword.Length < 6)
+        { erroModal = "Password deve ter pelo menos 6 caracteres."; return; }
+        if (novaPassword != confirmarPassword)
+        { erroModal = "As passwords não coincidem."; return; }
+
+        a_guardar = true;
+        try
+        {
+            await UtilSvc.ResetPasswordAsync(utilizadorResetPwd!.Id, novaPassword);
+            mensagem = $"✔ Password de '{utilizadorResetPwd.Nome}' redefinida com sucesso.";
+            modalResetPassword = false;
+        }
+        catch (Exception ex) { erroModal = ex.Message; }
+        a_guardar = false;
+    }
+
+    private async Task EliminarDefinitivo()
+    {
+        a_guardar = true;
+        try
+        {
+            var nome = utilizadorAEliminar!.Nome;
+            await UtilSvc.DeleteAsync(utilizadorAEliminar.Id);
+            mensagem = $"✔ Utilizador '{nome}' eliminado definitivamente.";
+            modalConfirmarEliminar = false;
+            await CarregarUtilizadores();
+        }
+        catch (Exception ex) { erroModal = ex.Message; }
+        a_guardar = false;
+    }
+
+    private static string BadgePapel(PapelUtilizador p) => p switch
+    {
+        PapelUtilizador.GestorCadeia => "bg-danger",
+        PapelUtilizador.GerenteLoja  => "bg-warning text-dark",
+        PapelUtilizador.Funcionario  => "bg-primary",
+        _ => "bg-secondary"
+    };
 }

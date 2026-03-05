@@ -25,6 +25,7 @@ public interface IProdutoService
 public interface IStockService
 {
     Task<IEnumerable<StockDto>> GetStockLojaAsync(int lojaId);
+    Task<IEnumerable<StockDto>> GetStockAllLojasAsync();
     Task<IEnumerable<StockAlertaDto>> GetAlertasAsync(int? lojaId = null);
     Task AjustarStockAsync(int lojaId, int produtoId, decimal variacao, string motivo, string userId);
     Task DefinirStockMinimoAsync(int lojaId, int produtoId, decimal minimo);
@@ -65,6 +66,7 @@ public interface IFornecedorService
 public interface IFaturaService
 {
     Task<IEnumerable<FaturaDto>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null);
+    Task<IEnumerable<FaturaDto>> GetAllFaturasAsync(DateTime? de = null, DateTime? ate = null);
     Task<FaturaDto?> GetByIdAsync(int id);
     Task<FaturaDto> EmitirAsync(EmitirFaturaDto dto);
     Task<byte[]> ExportPdfAsync(int faturaId);
@@ -94,4 +96,7 @@ public interface IUtilizadorService
     Task<Utilizador> CreateAsync(CreateUtilizadorDto dto);
     Task UpdateAsync(string id, UpdateUtilizadorDto dto);
     Task DeactivateAsync(string id);
+    Task ReactivateAsync(string id);
+    Task DeleteAsync(string id);
+    Task ResetPasswordAsync(string id, string novaPassword);
 }

@@ -196,7 +196,12 @@
 
     private async Task CarregarStock()
     {
-        if (Session.LojaId.HasValue)
+        if (Session.IsGestorCadeia)
+        {
+            todos = (await StockSvc.GetStockAllLojasAsync()).ToList();
+            alertas = await StockSvc.GetAlertasAsync(null); // todas as lojas
+        }
+        else if (Session.LojaId.HasValue)
         {
             todos = (await StockSvc.GetStockLojaAsync(Session.LojaId.Value)).ToList();
             alertas = await StockSvc.GetAlertasAsync(Session.LojaId.Value);

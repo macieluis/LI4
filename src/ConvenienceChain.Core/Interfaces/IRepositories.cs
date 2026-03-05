@@ -25,6 +25,7 @@ public interface IProdutoRepository
 
 public interface IStockRepository
 {
+    Task<IEnumerable<Stock>> GetAllAsync();
     Task<IEnumerable<Stock>> GetByLojaAsync(int lojaId);
     Task<Stock?> GetAsync(int lojaId, int produtoId);
     Task<IEnumerable<Stock>> GetAlertasByLojaAsync(int lojaId);
@@ -63,6 +64,7 @@ public interface IFornecedorRepository
 public interface IFaturaRepository
 {
     Task<IEnumerable<Fatura>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null);
+    Task<IEnumerable<Fatura>> GetAllFaturasAsync(DateTime? de = null, DateTime? ate = null);
     Task<Fatura?> GetByIdAsync(int id);
     Task<string> GetNextNumeroAsync(int lojaId);
     Task<Fatura> AddAsync(Fatura fatura);
@@ -86,6 +88,7 @@ public interface IUtilizadorRepository
     Task<Utilizador?> GetByEmailAsync(string email);
     Task<Utilizador> AddAsync(Utilizador utilizador);
     Task UpdateAsync(Utilizador utilizador);
+    Task DeleteAsync(string id);
 }
 
 public interface ICategoriaRepository

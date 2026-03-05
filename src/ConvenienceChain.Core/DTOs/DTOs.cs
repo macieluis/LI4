@@ -63,5 +63,7 @@ public record ProdutoMaisVendidoDto(string Produto, decimal QuantidadeTotal, dec
 public record VendasPorDiaDto(DateOnly Data, decimal Total);
 
 // --- Utilizador ---
-public record CreateUtilizadorDto(string Nome, string Email, string Password, PapelUtilizador Papel, int? LojaId);
-public record UpdateUtilizadorDto(string Nome, PapelUtilizador Papel, int? LojaId);
+public record CreateUtilizadorDto(string Nome, string Email, string Password, PapelUtilizador Papel, int? LojaId,
+    string? Telefone = null, string? Notas = null);
+public record UpdateUtilizadorDto(string Nome, PapelUtilizador Papel, int? LojaId,
+    string? Telefone = null, string? Notas = null);

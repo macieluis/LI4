@@ -78,6 +78,9 @@ public class StockRepository : IStockRepository
     private readonly AppDbContext _db;
     public StockRepository(AppDbContext db) => _db = db;
 
+    public async Task<IEnumerable<Stock>> GetAllAsync() =>
+        await _db.Stocks.Include(s => s.Produto).ThenInclude(p => p.Categoria)
+            .Include(s => s.Loja).ToListAsync();
     public async Task<IEnumerable<Stock>> GetByLojaAsync(int lojaId) =>
         await _db.Stocks.Include(s => s.Produto).ThenInclude(p => p.Categoria)
             .Where(s => s.LojaId == lojaId).ToListAsync();
@@ -220,6 +223,11 @@ public class UtilizadorRepository : IUtilizadorRepository
         _db.Utilizadores.Update(u);
         await _db.SaveChangesAsync();
     }
+    public async Task DeleteAsync(string id)
+    {
+        var u = await _db.Utilizadores.FindAsync(id);
+        if (u is not null) { _db.Utilizadores.Remove(u); await _db.SaveChangesAsync(); }
+    }
 }
 
 public class ConsolidacaoRepository : IConsolidacaoRepository
@@ -255,7 +263,14 @@ public class FaturaRepository : IFaturaRepository
 
     public async Task<IEnumerable<Fatura>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null)
     {
-        var q = _db.Faturas.Where(f => f.LojaId == lojaId);
+        var q = _db.Faturas.Include(f => f.Loja).Where(f => f.LojaId == lojaId);
+        if (de.HasValue) q = q.Where(f => f.DataEmissao >= de.Value);
+        if (ate.HasValue) q = q.Where(f => f.DataEmissao <= ate.Value);
+        return await q.OrderByDescending(f => f.DataEmissao).ToListAsync();
+    }
+    public async Task<IEnumerable<Fatura>> GetAllFaturasAsync(DateTime? de = null, DateTime? ate = null)
+    {
+        var q = _db.Faturas.Include(f => f.Loja).AsQueryable();
         if (de.HasValue) q = q.Where(f => f.DataEmissao >= de.Value);
         if (ate.HasValue) q = q.Where(f => f.DataEmissao <= ate.Value);
         return await q.OrderByDescending(f => f.DataEmissao).ToListAsync();

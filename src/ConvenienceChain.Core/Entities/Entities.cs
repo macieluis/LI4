@@ -226,6 +226,8 @@ public class Utilizador
     public PapelUtilizador Papel { get; set; }
     public int? LojaId { get; set; }
     public bool Ativo { get; set; } = true;
+    public string? Telefone { get; set; }
+    public string? Notas { get; set; }
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
 
     public Loja? Loja { get; set; }

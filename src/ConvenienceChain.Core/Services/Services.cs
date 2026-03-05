@@ -170,6 +170,22 @@ public class StockService : IStockService
             await _stockRepo.UpdateAsync(stock);
         }
     }
+
+    public async Task<IEnumerable<StockDto>> GetStockAllLojasAsync()
+    {
+        var todos = await _stockRepo.GetAllAsync();
+        var hoje = DateOnly.FromDateTime(DateTime.Today);
+        return todos.Select(s =>
+        {
+            var validade = s.Produto.DataValidade;
+            int? diasFim = validade.HasValue ? validade.Value.DayNumber - hoje.DayNumber : null;
+            return new StockDto(
+                s.ProdutoId, s.Produto.Codigo, s.Produto.Nome,
+                s.Produto.Categoria?.Nome ?? "", s.Quantidade, s.StockMinimo,
+                s.PrecoVendaLocal, s.Produto.PrecoBaseVenda, s.EmAlerta,
+                validade, diasFim);
+        });
+    }
 }
 
 /// <summary>Serviço de gestão de vendas (POS).</summary>
@@ -549,7 +565,8 @@ public class UtilizadorService : IUtilizadorService
         {
             Id = Guid.NewGuid().ToString(), Nome = dto.Nome, Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            Papel = dto.Papel, LojaId = dto.LojaId
+            Papel = dto.Papel, LojaId = dto.LojaId,
+            Telefone = dto.Telefone, Notas = dto.Notas
         };
         return await _repo.AddAsync(u);
     }
@@ -558,6 +575,7 @@ public class UtilizadorService : IUtilizadorService
     {
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.Nome = dto.Nome; u.Papel = dto.Papel; u.LojaId = dto.LojaId;
+        u.Telefone = dto.Telefone; u.Notas = dto.Notas;
         await _repo.UpdateAsync(u);
     }
 
@@ -565,6 +583,25 @@ public class UtilizadorService : IUtilizadorService
     {
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.Ativo = false;
+        await _repo.UpdateAsync(u);
+    }
+
+    public async Task ReactivateAsync(string id)
+    {
+        var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
+        u.Ativo = true;
+        await _repo.UpdateAsync(u);
+    }
+
+    public async Task DeleteAsync(string id)
+    {
+        await _repo.DeleteAsync(id);
+    }
+
+    public async Task ResetPasswordAsync(string id, string novaPassword)
+    {
+        var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
+        u.PasswordHash = BCrypt.Net.BCrypt.HashPassword(novaPassword);
         await _repo.UpdateAsync(u);
     }
 }
@@ -578,6 +615,12 @@ public class FaturaService : IFaturaService
     public async Task<IEnumerable<FaturaDto>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null)
     {
         var faturas = await _repo.GetByLojaAsync(lojaId, de, ate);
+        return faturas.Select(MapToDto);
+    }
+
+    public async Task<IEnumerable<FaturaDto>> GetAllFaturasAsync(DateTime? de = null, DateTime? ate = null)
+    {
+        var faturas = await _repo.GetAllFaturasAsync(de, ate);
         return faturas.Select(MapToDto);
     }
 

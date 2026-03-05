@@ -150,16 +150,80 @@
     </div>
 }
 
+<!-- Modal Receção de Encomenda -->
+@if (modalRececao && encomendaARececionar is not null)
+{
+    <div class="modal fade show d-block" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-box-arrow-in-down me-2 text-success"></i>
+                        Receção Encomenda #@encomendaARececionar.Id — @encomendaARececionar.NomeFornecedor
+                    </h5>
+                    <button class="btn-close" @onclick="() => modalRececao = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Confirme as quantidades efectivamente recebidas. O stock será actualizado automaticamente.
+                    </p>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Produto</th>
+                                <th class="text-center">Qtd Pedida</th>
+                                <th class="text-center">Qtd Recebida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var linha in rececaoLinhas)
+                            {
+                                <tr>
+                                    <td class="small fw-medium">@linha.NomeProduto</td>
+                                    <td class="text-center text-muted small">@linha.QuantidadePedida</td>
+                                    <td class="text-center">
+                                        <input type="number" class="form-control form-control-sm text-center"
+                                               style="width:90px;margin:auto"
+                                               min="0" step="0.001"
+                                               @bind="linha.QuantidadeRecebida" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (!string.IsNullOrEmpty(erroRececao))
+                    {
+                        <div class="alert alert-danger py-2 small">@erroRececao</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => modalRececao = false">Cancelar</button>
+                    <button class="btn btn-success btn-sm" @onclick="ConfirmarRececao" disabled="@a_rececionando">
+                        @if (a_rececionando) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-check-circle me-1"></i>Confirmar Receção
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<EncomendaDto> todas = new(), encomendas = new();
     private List<Core.Entities.Fornecedor> fornecedores = new();
     private List<Core.Entities.Produto> todosProdutos = new();
-    private bool a_carregar = true, modalNovaEncomenda;
+    private bool a_carregar = true, modalNovaEncomenda, modalRececao;
     private string filtroEstado = "";
     private string? erroEncomenda, sucessoMsg;
     private int novaEncFornecedorId;
     private string novaEncObs = "";
     private List<LinhaInput> novaEncLinhas = new() { new() };
+
+    // Receção
+    private EncomendaDto? encomendaARececionar;
+    private List<RecLinhaInput> rececaoLinhas = new();
+    private string? erroRececao;
+    private bool a_rececionando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -200,11 +264,54 @@
     private async Task Cancelar(int id)
     {
         await OrderSvc.CancelAsync(id);
-        todas = (await OrderSvc.GetByLojaAsync(Session.LojaId!.Value)).ToList();
+        var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
+        todas = lojaId.HasValue
+            ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
+            : (await OrderSvc.GetPendentesAsync()).ToList();
         Filtrar();
     }
 
-    private void AbrirRececao(EncomendaDto e) { /* Simplificado – marcar como rececionada */ }
+    private void AbrirRececao(EncomendaDto e)
+    {
+        encomendaARececionar = e;
+        rececaoLinhas = e.Linhas.Select(l => new RecLinhaInput
+        {
+            ProdutoId = l.ProdutoId,
+            NomeProduto = todosProdutos.FirstOrDefault(p => p.Id == l.ProdutoId)?.Nome ?? $"Produto {l.ProdutoId}",
+            QuantidadePedida = l.QuantidadePedida,
+            QuantidadeRecebida = l.QuantidadePedida // pré-preencher com quantidade pedida
+        }).ToList();
+        erroRececao = null;
+        modalRececao = true;
+    }
+
+    private async Task ConfirmarRececao()
+    {
+        erroRececao = null;
+        if (rececaoLinhas.Any(l => l.QuantidadeRecebida < 0)) { erroRececao = "Quantidade recebida não pode ser negativa."; return; }
+        a_rececionando = true;
+        try
+        {
+            var linhas = rececaoLinhas.Select(l => new RecepcionarLinhaDto(l.ProdutoId, l.QuantidadeRecebida));
+            await OrderSvc.RecepcionarAsync(encomendaARececionar!.Id, linhas);
+            modalRececao = false;
+            var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
+            todas = lojaId.HasValue
+                ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
+                : (await OrderSvc.GetPendentesAsync()).ToList();
+            Filtrar();
+            sucessoMsg = $"Encomenda #{encomendaARececionar.Id} rececionada. Stock atualizado automaticamente.";
+        }
+        catch (Exception ex) { erroRececao = ex.Message; }
+        a_rececionando = false;
+    }
 
     private class LinhaInput { public int ProdutoId { get; set; } public int Quantidade { get; set; } = 1; }
+    private class RecLinhaInput
+    {
+        public int ProdutoId { get; set; }
+        public string NomeProduto { get; set; } = "";
+        public decimal QuantidadePedida { get; set; }
+        public decimal QuantidadeRecebida { get; set; }
+    }
 }
