@@ -167,12 +167,13 @@ else if (!a_carregar)
 
     protected override async Task OnInitializedAsync()
     {
-        // Lojas loaded via IReportService - no direct Data layer dependency
         if (Session.IsGestorCadeia)
         {
             var dashboards = await ReportSvc.GetDashboardCentralAsync();
             lojas = dashboards.Select(d => new Core.Entities.Loja { Id = d.LojaId, Nome = d.NomeLoja }).ToList();
         }
+        // Auto-load with last 30 days
+        await GerarRelatorio();
     }
 
     private void SetPeriodo(int dias) { dataInicio = DateTime.Today.AddDays(-dias); dataFim = DateTime.Today; }

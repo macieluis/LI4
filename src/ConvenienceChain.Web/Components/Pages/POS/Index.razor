@@ -5,9 +5,17 @@
 @inject IProdutoService ProdutoSvc
 @inject ISalesService SalesSvc
 @inject IStockService StockSvc
+@inject IFaturaService FaturaSvc
 @inject SessionService Session
+@inject NavigationManager Nav
 
 <PageTitle>Ponto de Venda – SGCLC</PageTitle>
+
+@if (!Session.IsAuthenticated || Session.IsGestorCadeia)
+{
+    Nav.NavigateTo("/dashboard");
+    return;
+}
 
 <div class="page-header">
     <h1><i class="bi bi-cart3 me-2 text-primary"></i>Ponto de Venda</h1>
@@ -282,11 +290,20 @@
         a_processar = true; erroVenda = null;
         try
         {
-            var createDto = new CreateVendaDto(
-                Session.LojaId!.Value,
-                Session.UserId!,
-                carrinho.Select(i => new LinhaVendaDto(i.ProdutoId, i.Quantidade, i.PrecoUnit, 0)));
+            var linhas = carrinho.Select(i => new LinhaVendaDto(i.ProdutoId, i.Quantidade, i.PrecoUnit, 0)).ToList();
+            var createDto = new CreateVendaDto(Session.LojaId!.Value, Session.UserId!, linhas);
             vendaConcluida = await SalesSvc.CreateSaleAsync(createDto);
+
+            // Emitir fatura automaticamente
+            var faturaDto = new EmitirFaturaDto(
+                Session.LojaId!.Value,
+                vendaConcluida.Id,
+                "", "", "",  // consumidor final sem dados fiscais
+                linhas.Select(l => new LinhaFaturaDto(
+                    carrinho.FirstOrDefault(c => c.ProdutoId == l.ProdutoId)?.Nome ?? $"Produto {l.ProdutoId}",
+                    l.Quantidade, l.PrecoUnitario, l.Desconto)));
+            await FaturaSvc.EmitirAsync(faturaDto);
+
             // Recarregar stock após venda
             todosOsStocks = (await StockSvc.GetStockLojaAsync(Session.LojaId!.Value))
                 .Where(s => s.Quantidade > 0)
