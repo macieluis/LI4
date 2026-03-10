@@ -87,5 +87,96 @@ public static class SeedData
         db.Fornecedores.AddRange(forn1, forn2, forn3);
 
         await db.SaveChangesAsync();
+
+        // ── Vendas e Faturas de demonstração ─────────────────────
+        // Criar vendas das últimas 2 semanas para loja1 (func1 e gerente1)
+        var vendas = new List<Venda>();
+        var faturas = new List<Fatura>();
+        var rng = new Random(42);
+        var prod0 = produtos[0]; // Agua 500ml
+        var prod1 = produtos[2]; // Coca-Cola
+        var prod2 = produtos[7]; // Batatas Fritas
+
+        for (int i = 13; i >= 0; i--)
+        {
+            var data = DateTime.UtcNow.AddDays(-i).Date.AddHours(10 + rng.Next(0, 8));
+            var funcionario = i % 2 == 0 ? func1 : gerente1;
+            var nrVendas = rng.Next(2, 6);
+            for (int v = 0; v < nrVendas; v++)
+            {
+                var linhas = new List<LinhaVenda>
+                {
+                    new() { Produto = prod0, Quantidade = rng.Next(1, 5), PrecoUnitario = prod0.PrecoBaseVenda, Desconto = 0 },
+                    new() { Produto = prod1, Quantidade = rng.Next(1, 3), PrecoUnitario = prod1.PrecoBaseVenda, Desconto = 0 },
+                };
+                if (rng.Next(0, 2) == 0)
+                    linhas.Add(new() { Produto = prod2, Quantidade = 1, PrecoUnitario = prod2.PrecoBaseVenda, Desconto = 0 });
+
+                var sub = linhas.Sum(l => l.Quantidade * l.PrecoUnitario);
+                var venda = new Venda
+                {
+                    Loja = loja1, Funcionario = funcionario,
+                    DataHora = data.AddMinutes(v * 20),
+                    SubTotal = sub, TotalDesconto = 0, Total = sub,
+                    Estado = EstadoVenda.Concluida,
+                    Linhas = linhas
+                };
+                vendas.Add(venda);
+
+                // Fatura correspondente
+                var lojaSeq = faturas.Count(f => f.Loja == loja1) + 1;
+                faturas.Add(new Fatura
+                {
+                    Loja = loja1, Venda = venda,
+                    Numero = $"FAT-001-{venda.DataHora.Year}-{lojaSeq:D5}",
+                    NomeCliente = "", NIFCliente = "", MoradaCliente = "",
+                    DataEmissao = venda.DataHora,
+                    Total = sub,
+                    Estado = EstadoFatura.Emitida,
+                    Linhas = linhas.Select(l => new LinhaFatura
+                    {
+                        DescricaoProduto = l.Produto.Nome,
+                        Quantidade = l.Quantidade,
+                        PrecoUnitario = l.PrecoUnitario,
+                        Desconto = 0
+                    }).ToList()
+                });
+            }
+        }
+        // Algumas vendas na loja2 (para o Gestor ver dados diferentes por loja)
+        for (int i = 6; i >= 0; i--)
+        {
+            var data = DateTime.UtcNow.AddDays(-i).Date.AddHours(9 + rng.Next(0, 6));
+            var sub = Math.Round((decimal)(rng.NextDouble() * 15 + 5), 2);
+            var venda = new Venda
+            {
+                Loja = loja2, Funcionario = gerente2,
+                DataHora = data,
+                SubTotal = sub, TotalDesconto = 0, Total = sub,
+                Estado = EstadoVenda.Concluida,
+                Linhas = new List<LinhaVenda>
+                {
+                    new() { Produto = prod0, Quantidade = 2, PrecoUnitario = prod0.PrecoBaseVenda, Desconto = 0 }
+                }
+            };
+            vendas.Add(venda);
+            var lojaSeq = faturas.Count(f => f.Loja == loja2) + 1;
+            faturas.Add(new Fatura
+            {
+                Loja = loja2, Venda = venda,
+                Numero = $"FAT-002-{data.Year}-{lojaSeq:D5}",
+                NomeCliente = "", NIFCliente = "", MoradaCliente = "",
+                DataEmissao = data, Total = sub,
+                Estado = EstadoFatura.Emitida,
+                Linhas = new List<LinhaFatura>
+                {
+                    new() { DescricaoProduto = prod0.Nome, Quantidade = 2, PrecoUnitario = prod0.PrecoBaseVenda, Desconto = 0 }
+                }
+            });
+        }
+
+        db.Vendas.AddRange(vendas);
+        db.Faturas.AddRange(faturas);
+        await db.SaveChangesAsync();
     }
 }
