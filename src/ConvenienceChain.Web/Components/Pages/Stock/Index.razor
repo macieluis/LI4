@@ -1,8 +1,10 @@
 @page "/stock"
 @using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Entities
 @using ConvenienceChain.Core.Interfaces
 @using ConvenienceChain.Web.Services
 @inject IStockService StockSvc
+@inject ILojaRepository LojaRepo
 @inject SessionService Session
 
 <PageTitle>Gestão de Stock – SGCLC</PageTitle>
@@ -10,7 +12,12 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h1><i class="bi bi-boxes me-2 text-primary"></i>Gestão de Stock</h1>
-        <p class="text-muted mb-0">@(Session.IsGestorCadeia ? "Todas as lojas" : $"Loja: Id {Session.LojaId}")</p>
+        <p class="text-muted mb-0">
+            @if (Session.IsGestorCadeia)
+            { <span>Selecione uma loja para visualizar o stock</span> }
+            else
+            { <span>Loja: Id @Session.LojaId</span> }
+        </p>
     </div>
     <button class="btn btn-outline-secondary btn-sm" @onclick="ExportarCsv">
         <i class="bi bi-download me-1"></i>Exportar CSV
@@ -41,13 +48,30 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
         <div class="row g-2 align-items-center">
-            <div class="col-md-5">
-                <div class="input-group">
+            @if (Session.IsGestorCadeia)
+            {
+                <div class="col-md-4">
+                    <label class="form-label fw-medium small mb-1">Loja</label>
+                    <select class="form-select form-select-sm" @bind="lojaIdSelecionada" @bind:after="OnLojaChanged">
+                        <option value="0">-- Selecionar loja --</option>
+                        @foreach (var l in todasAsLojas)
+                        {
+                            <option value="@l.Id">@l.Nome</option>
+                        }
+                    </select>
+                </div>
+            }
+            <div class="col-md-4">
+                <label class="form-label fw-medium small mb-1">Pesquisar</label>
+                <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input class="form-control form-control-sm" placeholder="Pesquisar produto..." @bind="filtroNome" @oninput="Filtrar" />
+                    <input class="form-control" placeholder="Produto, código ou categoria..."
+                           value="@filtroNome"
+                           @oninput="OnFiltroNomeInput" />
                 </div>
             </div>
             <div class="col-md-3">
+                <label class="form-label fw-medium small mb-1">Estado</label>
                 <select class="form-select form-select-sm" @bind="filtroAlerta" @bind:after="Filtrar">
                     <option value="">Todos</option>
                     <option value="alerta">Em alerta</option>
@@ -67,6 +91,13 @@
         {
             <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
         }
+        else if (Session.IsGestorCadeia && lojaIdSelecionada == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-building fs-1 d-block mb-2 opacity-25"></i>
+                Selecione uma loja para ver o respetivo stock.
+            </div>
+        }
         else
         {
             <div class="table-responsive">
@@ -84,6 +115,10 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @if (!stockFiltrado.Any())
+                        {
+                            <tr><td colspan="8" class="text-center text-muted py-4">Nenhum produto encontrado.</td></tr>
+                        }
                         @foreach (var s in stockFiltrado)
                         {
                             <tr>
@@ -179,6 +214,8 @@
     private List<StockDto> todos = new();
     private List<StockDto> stockFiltrado = new();
     private IEnumerable<StockAlertaDto> alertas = Enumerable.Empty<StockAlertaDto>();
+    private List<Loja> todasAsLojas = new();
+    private int lojaIdSelecionada = 0;
     private string filtroNome = "", filtroAlerta = "";
     private bool a_carregar = true;
 
@@ -190,29 +227,50 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (Session.IsGestorCadeia)
+        {
+            todasAsLojas = (await LojaRepo.GetAllActiveAsync()).ToList();
+            // Não carrega stock ainda — espera seleção de loja
+        }
+        else
+        {
+            await CarregarStock();
+        }
+        a_carregar = false;
+    }
+
+    private async Task OnLojaChanged()
+    {
+        if (lojaIdSelecionada == 0) { todos = new(); stockFiltrado = new(); alertas = Enumerable.Empty<StockAlertaDto>(); return; }
+        a_carregar = true;
         await CarregarStock();
         a_carregar = false;
     }
 
     private async Task CarregarStock()
     {
-        if (Session.IsGestorCadeia)
-        {
-            todos = (await StockSvc.GetStockAllLojasAsync()).ToList();
-            alertas = await StockSvc.GetAlertasAsync(null); // todas as lojas
-        }
-        else if (Session.LojaId.HasValue)
-        {
-            todos = (await StockSvc.GetStockLojaAsync(Session.LojaId.Value)).ToList();
-            alertas = await StockSvc.GetAlertasAsync(Session.LojaId.Value);
-        }
-        stockFiltrado = todos;
+        var lojaId = Session.IsGestorCadeia ? lojaIdSelecionada : (Session.LojaId ?? 0);
+        if (lojaId == 0) return;
+
+        todos = (await StockSvc.GetStockLojaAsync(lojaId)).ToList();
+        alertas = await StockSvc.GetAlertasAsync(lojaId);
+        Filtrar();
+    }
+
+    private void OnFiltroNomeInput(ChangeEventArgs e)
+    {
+        filtroNome = e.Value?.ToString() ?? "";
+        Filtrar();
     }
 
     private void Filtrar()
     {
+        var q = filtroNome.Trim();
         stockFiltrado = todos.Where(s =>
-            (string.IsNullOrEmpty(filtroNome) || s.NomeProduto.Contains(filtroNome, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(q) ||
+             s.NomeProduto.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+             s.CodigoProduto.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+             s.Categoria.Contains(q, StringComparison.OrdinalIgnoreCase)) &&
             filtroAlerta switch
             {
                 "alerta"   => s.EmAlerta,
@@ -230,9 +288,10 @@
     {
         if (string.IsNullOrWhiteSpace(ajusteMotivo)) { erroAjuste = "O motivo é obrigatório."; return; }
         a_ajuste = true; erroAjuste = null;
+        var lojaId = Session.IsGestorCadeia ? lojaIdSelecionada : (Session.LojaId ?? 0);
         try
         {
-            await StockSvc.AjustarStockAsync(Session.LojaId!.Value, produtoAjuste!.ProdutoId, ajusteVariacao, ajusteMotivo, Session.UserId!);
+            await StockSvc.AjustarStockAsync(lojaId, produtoAjuste!.ProdutoId, ajusteVariacao, ajusteMotivo, Session.UserId!);
             produtoAjuste = null;
             await CarregarStock();
         }
