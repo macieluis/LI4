@@ -113,8 +113,10 @@ public class VendaRepository : IVendaRepository
 
     public async Task<IEnumerable<Venda>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null)
     {
-        var query = _db.Vendas.Include(v => v.Linhas).ThenInclude(l => l.Produto)
+        var query = _db.Vendas
+            .Include(v => v.Linhas).ThenInclude(l => l.Produto).ThenInclude(p => p.Categoria)
             .Include(v => v.Funcionario)
+            .Include(v => v.Loja)
             .Where(v => v.LojaId == lojaId);
         if (de.HasValue) query = query.Where(v => v.DataHora >= de.Value);
         if (ate.HasValue) query = query.Where(v => v.DataHora <= ate.Value);
@@ -126,15 +128,26 @@ public class VendaRepository : IVendaRepository
             .FirstOrDefaultAsync(v => v.Id == id);
     public async Task<decimal> GetTotalVendasDiaAsync(int lojaId, DateTime dia)
     {
+        var inicio = dia.Date;
+        var fim = inicio.AddDays(1);
         var vendas = await _db.Vendas
             .Where(v => v.LojaId == lojaId &&
-                v.DataHora.Date == dia.Date && v.Estado == Core.Enums.EstadoVenda.Concluida)
+                v.DataHora >= inicio && v.DataHora < fim &&
+                v.Estado == Core.Enums.EstadoVenda.Concluida)
             .ToListAsync();
         return vendas.Sum(v => v.Total);
     }
-    public async Task<int> GetNumeroTransacoesDiaAsync(int lojaId, DateTime dia) =>
-        await _db.Vendas.CountAsync(v => v.LojaId == lojaId &&
-            v.DataHora.Date == dia.Date && v.Estado == Core.Enums.EstadoVenda.Concluida);
+    public async Task<int> GetNumeroTransacoesDiaAsync(int lojaId, DateTime dia)
+    {
+        var inicio = dia.Date;
+        var fim = inicio.AddDays(1);
+        var vendas = await _db.Vendas
+            .Where(v => v.LojaId == lojaId &&
+                v.DataHora >= inicio && v.DataHora < fim &&
+                v.Estado == Core.Enums.EstadoVenda.Concluida)
+            .ToListAsync();
+        return vendas.Count;
+    }
     public async Task<Venda> AddAsync(Venda venda)
     {
         _db.Vendas.Add(venda);
