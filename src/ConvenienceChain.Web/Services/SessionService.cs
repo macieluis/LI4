@@ -27,6 +27,7 @@ public class SessionService
         Email = result.Email;
         Papel = result.Papel;
         LojaId = result.LojaId;
+        NotifyStateChanged();
     }
 
     public void Logout()
@@ -35,7 +36,9 @@ public class SessionService
         UserId = null;
         Nome = null;
         Email = null;
+        Papel = default;
         LojaId = null;
+        NotifyStateChanged();
     }
 
     public event Action? OnChange;
