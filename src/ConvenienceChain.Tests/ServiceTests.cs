@@ -17,7 +17,17 @@ public class StockServiceTests
 {
     private readonly Mock<IStockRepository> _mockStockRepo = new();
     private readonly Mock<IAjusteStockRepository> _mockAjusteRepo = new();
-    private StockService CreateSvc() => new(_mockStockRepo.Object, _mockAjusteRepo.Object);
+    private readonly Mock<IUtilizadorRepository> _mockUserRepo = new();
+
+    public StockServiceTests()
+    {
+        // Por omissão mock devolve um Gestor ativo — as testes específicas podem sobrescrever.
+        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Utilizador { Id = "user1", Papel = PapelUtilizador.GestorCadeia, Ativo = true });
+    }
+
+    private StockService CreateSvc() =>
+        new(_mockStockRepo.Object, _mockAjusteRepo.Object, _mockUserRepo.Object);
 
     [Fact]
     public async Task AjustarStock_VariacaoNegativaValida_AtualizaQuantidade()
@@ -178,7 +188,15 @@ public class SalesServiceTests
 public class ProdutoServiceTests
 {
     private readonly Mock<IProdutoRepository> _mockProdRepo = new();
-    private ProdutoService CreateSvc() => new(_mockProdRepo.Object);
+    private readonly Mock<IUtilizadorRepository> _mockUserRepo = new();
+
+    public ProdutoServiceTests()
+    {
+        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Utilizador { Id = "admin", Papel = PapelUtilizador.GestorCadeia, Ativo = true });
+    }
+
+    private ProdutoService CreateSvc() => new(_mockProdRepo.Object, _mockUserRepo.Object);
 
     [Fact]
     public async Task CreateProduto_CodigoDuplicado_LancaExcecao()
@@ -187,10 +205,10 @@ public class ProdutoServiceTests
         var existing = new Produto { Codigo = "5601" };
         _mockProdRepo.Setup(r => r.GetByCodigoAsync("5601")).ReturnsAsync(existing);
         var svc = CreateSvc();
-        var dto = new CreateProdutoDto("5601", "Água", null, 0.15m, 0.50m, "unidade", 1, null);
+        var dto = new CreateProdutoDto("5601", "Água", "", 0.15m, 0.50m, "unidade", 1, null);
 
         // Act
-        var act = async () => await svc.CreateAsync(dto);
+        var act = async () => await svc.CreateAsync(dto, "admin");
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
@@ -205,7 +223,7 @@ public class ProdutoServiceTests
         var svc = CreateSvc();
 
         // Act
-        var act = async () => await svc.DeactivateAsync(999);
+        var act = async () => await svc.DeactivateAsync(999, "admin");
 
         // Assert
         await act.Should().ThrowAsync<KeyNotFoundException>();

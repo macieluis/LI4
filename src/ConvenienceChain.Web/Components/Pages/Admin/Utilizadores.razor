@@ -473,13 +473,15 @@ else
             if (editando is null)
             {
                 await UtilSvc.CreateAsync(new Core.DTOs.CreateUtilizadorDto(
-                    formNome, formEmail, formPassword, papel, lojaId, formTelefone, formNotas));
+                    formNome, formEmail, formPassword, papel, lojaId, formTelefone, formNotas),
+                    Session.UserId!);
                 mensagem = $"✔ Utilizador '{formNome}' criado com sucesso.";
             }
             else
             {
                 await UtilSvc.UpdateAsync(editando.Id, new Core.DTOs.UpdateUtilizadorDto(
-                    formNome, papel, lojaId, formTelefone, formNotas));
+                    formNome, papel, lojaId, formTelefone, formNotas),
+                    Session.UserId!);
                 mensagem = $"✔ Utilizador '{formNome}' atualizado.";
             }
             await CarregarUtilizadores();
@@ -491,14 +493,14 @@ else
 
     private async Task Desativar(Utilizador u)
     {
-        await UtilSvc.DeactivateAsync(u.Id);
+        await UtilSvc.DeactivateAsync(u.Id, Session.UserId!);
         mensagem = $"✔ '{u.Nome}' desativado.";
         await CarregarUtilizadores();
     }
 
     private async Task Reativar(Utilizador u)
     {
-        await UtilSvc.ReactivateAsync(u.Id);
+        await UtilSvc.ReactivateAsync(u.Id, Session.UserId!);
         mensagem = $"✔ '{u.Nome}' reativado.";
         await CarregarUtilizadores();
     }
@@ -514,7 +516,7 @@ else
         a_guardar = true;
         try
         {
-            await UtilSvc.ResetPasswordAsync(utilizadorResetPwd!.Id, novaPassword);
+            await UtilSvc.ResetPasswordAsync(utilizadorResetPwd!.Id, novaPassword, Session.UserId!);
             mensagem = $"✔ Password de '{utilizadorResetPwd.Nome}' redefinida com sucesso.";
             modalResetPassword = false;
         }
@@ -528,7 +530,7 @@ else
         try
         {
             var nome = utilizadorAEliminar!.Nome;
-            await UtilSvc.DeleteAsync(utilizadorAEliminar.Id);
+            await UtilSvc.DeleteAsync(utilizadorAEliminar.Id, Session.UserId!);
             mensagem = $"✔ Utilizador '{nome}' eliminado definitivamente.";
             modalConfirmarEliminar = false;
             await CarregarUtilizadores();

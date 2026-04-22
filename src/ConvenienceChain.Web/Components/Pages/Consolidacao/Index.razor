@@ -144,7 +144,7 @@ else
         _aExecutar = true;
         try
         {
-            _ultimoResumo = await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(_dataEscolhida));
+            _ultimoResumo = await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(_dataEscolhida), Session.UserId);
             _historico = await ConsSvc.GetHistoricoAsync();
         }
         finally

@@ -7,6 +7,29 @@ using QuestPDF.Infrastructure;
 
 namespace ConvenienceChain.Core.Services;
 
+/// <summary>
+/// Guards de RBAC aplicados na camada de serviços para impedir bypass via URL direto.
+/// </summary>
+internal static class RbacGuard
+{
+    public static async Task EnsureGestorAsync(IUtilizadorRepository repo, string userId)
+    {
+        var u = await repo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("Utilizador não encontrado ou sessão inválida.");
+        if (u.Papel != PapelUtilizador.GestorCadeia)
+            throw new UnauthorizedAccessException("Operação reservada ao Gestor da Cadeia.");
+    }
+
+    public static async Task EnsureGerenteOuGestorAsync(IUtilizadorRepository repo, string userId, int? lojaId = null)
+    {
+        var u = await repo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("Utilizador não encontrado ou sessão inválida.");
+        if (u.Papel == PapelUtilizador.GestorCadeia) return;
+        if (u.Papel == PapelUtilizador.GerenteLoja && (lojaId is null || u.LojaId == lojaId)) return;
+        throw new UnauthorizedAccessException("Sem permissão para esta operação nesta loja.");
+    }
+}
+
 /// <summary>Serviço de autenticação simples baseado em utilizadores da BD.</summary>
 public class AuthService : IAuthService
 {
@@ -37,7 +60,11 @@ public class AuthService : IAuthService
 public class ProdutoService : IProdutoService
 {
     private readonly IProdutoRepository _repo;
-    public ProdutoService(IProdutoRepository repo) => _repo = repo;
+    private readonly IUtilizadorRepository _userRepo;
+    public ProdutoService(IProdutoRepository repo, IUtilizadorRepository userRepo)
+    {
+        _repo = repo; _userRepo = userRepo;
+    }
 
     public async Task<IEnumerable<Produto>> GetAllAsync() => await _repo.GetAllActiveAsync();
     public async Task<IEnumerable<Produto>> SearchAsync(string query, int? categoriaId = null)
@@ -49,8 +76,9 @@ public class ProdutoService : IProdutoService
     }
     public async Task<Produto?> GetByIdAsync(int id) => await _repo.GetByIdAsync(id);
 
-    public async Task<Produto> CreateAsync(CreateProdutoDto dto)
+    public async Task<Produto> CreateAsync(CreateProdutoDto dto, string userId)
     {
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         var existing = await _repo.GetByCodigoAsync(dto.Codigo);
         if (existing is not null) throw new InvalidOperationException($"Produto com código '{dto.Codigo}' já existe.");
         var produto = new Produto
@@ -62,8 +90,9 @@ public class ProdutoService : IProdutoService
         return await _repo.AddAsync(produto);
     }
 
-    public async Task UpdateAsync(int id, UpdateProdutoDto dto)
+    public async Task UpdateAsync(int id, UpdateProdutoDto dto, string userId)
     {
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         var produto = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException($"Produto {id} não encontrado.");
         produto.Nome = dto.Nome; produto.Descricao = dto.Descricao;
         produto.PrecoCusto = dto.PrecoCusto; produto.PrecoBaseVenda = dto.PrecoBaseVenda;
@@ -71,8 +100,9 @@ public class ProdutoService : IProdutoService
         produto.Foto = dto.Foto;
         await _repo.UpdateAsync(produto);
     }
-    public async Task DeactivateAsync(int id)
+    public async Task DeactivateAsync(int id, string userId)
     {
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         var p = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         p.Ativo = false;
         await _repo.UpdateAsync(p);
@@ -84,10 +114,12 @@ public class StockService : IStockService
 {
     private readonly IStockRepository _stockRepo;
     private readonly IAjusteStockRepository _ajusteRepo;
+    private readonly IUtilizadorRepository _userRepo;
 
-    public StockService(IStockRepository stockRepo, IAjusteStockRepository ajusteRepo)
+    public StockService(IStockRepository stockRepo, IAjusteStockRepository ajusteRepo,
+        IUtilizadorRepository userRepo)
     {
-        _stockRepo = stockRepo; _ajusteRepo = ajusteRepo;
+        _stockRepo = stockRepo; _ajusteRepo = ajusteRepo; _userRepo = userRepo;
     }
 
     public async Task<IEnumerable<StockDto>> GetStockLojaAsync(int lojaId)
@@ -117,6 +149,8 @@ public class StockService : IStockService
 
     public async Task AjustarStockAsync(int lojaId, int produtoId, decimal variacao, string motivo, string userId)
     {
+        await RbacGuard.EnsureGerenteOuGestorAsync(_userRepo, userId, lojaId);
+
         var stock = await _stockRepo.GetAsync(lojaId, produtoId);
         if (stock is null) throw new KeyNotFoundException("Stock não encontrado para este produto/loja.");
         stock.Quantidade += variacao;
@@ -280,17 +314,23 @@ public class ConsolidacaoService : IConsolidacaoService
     private readonly IConsolidacaoRepository _consolidacaoRepo;
     private readonly IVendaRepository _vendaRepo;
     private readonly ILojaRepository _lojaRepo;
+    private readonly IUtilizadorRepository _userRepo;
 
     public ConsolidacaoService(IConsolidacaoRepository consolidacaoRepo,
-        IVendaRepository vendaRepo, ILojaRepository lojaRepo)
+        IVendaRepository vendaRepo, ILojaRepository lojaRepo, IUtilizadorRepository userRepo)
     {
         _consolidacaoRepo = consolidacaoRepo;
         _vendaRepo = vendaRepo;
         _lojaRepo = lojaRepo;
+        _userRepo = userRepo;
     }
 
-    public async Task<ConsolidacaoResumoDto> ConsolidarTodasAsync(DateOnly data)
+    public async Task<ConsolidacaoResumoDto> ConsolidarTodasAsync(DateOnly data, string? userId = null)
     {
+        // userId null = chamada interna (background service). Com userId valida Gestor.
+        if (userId is not null)
+            await RbacGuard.EnsureGestorAsync(_userRepo, userId);
+
         var lojas = await _lojaRepo.GetAllActiveAsync();
         var sucessos = 0;
         var falhas = new List<int>();
@@ -669,26 +709,33 @@ public class ReportService : IReportService
 public class FornecedorService : IFornecedorService
 {
     private readonly IFornecedorRepository _repo;
-    public FornecedorService(IFornecedorRepository repo) => _repo = repo;
+    private readonly IUtilizadorRepository _userRepo;
+    public FornecedorService(IFornecedorRepository repo, IUtilizadorRepository userRepo)
+    {
+        _repo = repo; _userRepo = userRepo;
+    }
 
     public async Task<IEnumerable<Fornecedor>> GetAllAsync() => await _repo.GetAllActiveAsync();
     public async Task<Fornecedor?> GetByIdAsync(int id) => await _repo.GetByIdAsync(id);
 
-    public async Task<Fornecedor> CreateAsync(CreateFornecedorDto dto)
+    public async Task<Fornecedor> CreateAsync(CreateFornecedorDto dto, string userId)
     {
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         var f = new Fornecedor { Nome = dto.Nome, NIF = dto.NIF, Telefone = dto.Telefone, Email = dto.Email };
         return await _repo.AddAsync(f);
     }
 
-    public async Task UpdateAsync(int id, UpdateFornecedorDto dto)
+    public async Task UpdateAsync(int id, UpdateFornecedorDto dto, string userId)
     {
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         var f = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         f.Nome = dto.Nome; f.Telefone = dto.Telefone; f.Email = dto.Email;
         await _repo.UpdateAsync(f);
     }
 
-    public async Task DeactivateAsync(int id)
+    public async Task DeactivateAsync(int id, string userId)
     {
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         var f = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         f.Ativo = false;
         await _repo.UpdateAsync(f);
@@ -705,8 +752,9 @@ public class UtilizadorService : IUtilizadorService
     public async Task<IEnumerable<Utilizador>> GetByLojaAsync(int lojaId) => await _repo.GetByLojaAsync(lojaId);
     public async Task<Utilizador?> GetByIdAsync(string id) => await _repo.GetByIdAsync(id);
 
-    public async Task<Utilizador> CreateAsync(CreateUtilizadorDto dto)
+    public async Task<Utilizador> CreateAsync(CreateUtilizadorDto dto, string requesterId)
     {
+        await RbacGuard.EnsureGestorAsync(_repo, requesterId);
         var u = new Utilizador
         {
             Id = Guid.NewGuid().ToString(), Nome = dto.Nome, Email = dto.Email,
@@ -717,35 +765,40 @@ public class UtilizadorService : IUtilizadorService
         return await _repo.AddAsync(u);
     }
 
-    public async Task UpdateAsync(string id, UpdateUtilizadorDto dto)
+    public async Task UpdateAsync(string id, UpdateUtilizadorDto dto, string requesterId)
     {
+        await RbacGuard.EnsureGestorAsync(_repo, requesterId);
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.Nome = dto.Nome; u.Papel = dto.Papel; u.LojaId = dto.LojaId;
         u.Telefone = dto.Telefone; u.Notas = dto.Notas;
         await _repo.UpdateAsync(u);
     }
 
-    public async Task DeactivateAsync(string id)
+    public async Task DeactivateAsync(string id, string requesterId)
     {
+        await RbacGuard.EnsureGestorAsync(_repo, requesterId);
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.Ativo = false;
         await _repo.UpdateAsync(u);
     }
 
-    public async Task ReactivateAsync(string id)
+    public async Task ReactivateAsync(string id, string requesterId)
     {
+        await RbacGuard.EnsureGestorAsync(_repo, requesterId);
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.Ativo = true;
         await _repo.UpdateAsync(u);
     }
 
-    public async Task DeleteAsync(string id)
+    public async Task DeleteAsync(string id, string requesterId)
     {
+        await RbacGuard.EnsureGestorAsync(_repo, requesterId);
         await _repo.DeleteAsync(id);
     }
 
-    public async Task ResetPasswordAsync(string id, string novaPassword)
+    public async Task ResetPasswordAsync(string id, string novaPassword, string requesterId)
     {
+        await RbacGuard.EnsureGestorAsync(_repo, requesterId);
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.PasswordHash = BCrypt.Net.BCrypt.HashPassword(novaPassword);
         await _repo.UpdateAsync(u);

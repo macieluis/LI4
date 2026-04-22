@@ -17,9 +17,9 @@ public interface IProdutoService
     Task<IEnumerable<Produto>> GetAllAsync();
     Task<IEnumerable<Produto>> SearchAsync(string query, int? categoriaId = null);
     Task<Produto?> GetByIdAsync(int id);
-    Task<Produto> CreateAsync(CreateProdutoDto dto);
-    Task UpdateAsync(int id, UpdateProdutoDto dto);
-    Task DeactivateAsync(int id);
+    Task<Produto> CreateAsync(CreateProdutoDto dto, string userId);
+    Task UpdateAsync(int id, UpdateProdutoDto dto, string userId);
+    Task DeactivateAsync(int id, string userId);
 }
 
 public interface IStockService
@@ -58,9 +58,9 @@ public interface IFornecedorService
 {
     Task<IEnumerable<Fornecedor>> GetAllAsync();
     Task<Fornecedor?> GetByIdAsync(int id);
-    Task<Fornecedor> CreateAsync(CreateFornecedorDto dto);
-    Task UpdateAsync(int id, UpdateFornecedorDto dto);
-    Task DeactivateAsync(int id);
+    Task<Fornecedor> CreateAsync(CreateFornecedorDto dto, string userId);
+    Task UpdateAsync(int id, UpdateFornecedorDto dto, string userId);
+    Task DeactivateAsync(int id, string userId);
 }
 
 public interface IFaturaService
@@ -75,7 +75,7 @@ public interface IFaturaService
 
 public interface IConsolidacaoService
 {
-    Task<ConsolidacaoResumoDto> ConsolidarTodasAsync(DateOnly data);
+    Task<ConsolidacaoResumoDto> ConsolidarTodasAsync(DateOnly data, string? userId = null);
     Task<ConsolidacaoDto> ConsolidarLojaAsync(int lojaId, DateOnly data);
     Task<IEnumerable<ConsolidacaoDto>> GetHistoricoAsync(int? lojaId = null);
 }
@@ -102,10 +102,10 @@ public interface IUtilizadorService
     Task<IEnumerable<Utilizador>> GetAllAsync();
     Task<IEnumerable<Utilizador>> GetByLojaAsync(int lojaId);
     Task<Utilizador?> GetByIdAsync(string id);
-    Task<Utilizador> CreateAsync(CreateUtilizadorDto dto);
-    Task UpdateAsync(string id, UpdateUtilizadorDto dto);
-    Task DeactivateAsync(string id);
-    Task ReactivateAsync(string id);
-    Task DeleteAsync(string id);
-    Task ResetPasswordAsync(string id, string novaPassword);
+    Task<Utilizador> CreateAsync(CreateUtilizadorDto dto, string requesterId);
+    Task UpdateAsync(string id, UpdateUtilizadorDto dto, string requesterId);
+    Task DeactivateAsync(string id, string requesterId);
+    Task ReactivateAsync(string id, string requesterId);
+    Task DeleteAsync(string id, string requesterId);
+    Task ResetPasswordAsync(string id, string novaPassword, string requesterId);
 }
