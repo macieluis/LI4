@@ -780,8 +780,80 @@ public class FaturaService : IFaturaService
         return MapToDto(fatura);
     }
 
-    public Task<byte[]> ExportPdfAsync(int faturaId) =>
-        Task.FromResult(Array.Empty<byte>()); // Implementar com QuestPDF
+    public async Task<byte[]> ExportPdfAsync(int faturaId)
+    {
+        var fatura = await _repo.GetByIdAsync(faturaId)
+            ?? throw new KeyNotFoundException($"Fatura {faturaId} não encontrada.");
+
+        return QuestPDF.Fluent.Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Margin(40);
+                page.Size(QuestPDF.Helpers.PageSizes.A4);
+                page.DefaultTextStyle(x => x.FontSize(10));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().Row(r =>
+                    {
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("SGCLC — QuickMart").FontSize(14).SemiBold();
+                            c.Item().Text(fatura.Loja?.Nome ?? "").FontSize(9);
+                            c.Item().Text(fatura.Loja?.Morada ?? "").FontSize(9);
+                        });
+                        r.RelativeItem().AlignRight().Column(c =>
+                        {
+                            c.Item().AlignRight().Text("FATURA").FontSize(20).SemiBold().FontColor(QuestPDF.Helpers.Colors.Blue.Darken2);
+                            c.Item().AlignRight().Text($"Nº {fatura.Numero}").FontSize(11).SemiBold();
+                            c.Item().AlignRight().Text($"Data: {fatura.DataEmissao:dd/MM/yyyy}").FontSize(9);
+                        });
+                    });
+                    col.Item().PaddingTop(10).LineHorizontal(1);
+                });
+
+                page.Content().PaddingVertical(15).Column(col =>
+                {
+                    col.Item().Text("Cliente").SemiBold().FontSize(11);
+                    col.Item().Text(fatura.NomeCliente);
+                    col.Item().Text($"NIF: {fatura.NIFCliente}");
+                    if (!string.IsNullOrEmpty(fatura.MoradaCliente))
+                        col.Item().Text(fatura.MoradaCliente);
+
+                    col.Item().PaddingTop(15).Table(table =>
+                    {
+                        table.ColumnsDefinition(c =>
+                        {
+                            c.RelativeColumn(4); c.RelativeColumn(1); c.RelativeColumn(1);
+                            c.RelativeColumn(1); c.RelativeColumn(1);
+                        });
+                        table.Header(h =>
+                        {
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).Text("Descrição").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Qtd").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Preço").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Desc.").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Subtotal").SemiBold();
+                        });
+                        foreach (var linha in fatura.Linhas)
+                        {
+                            table.Cell().BorderBottom(0.5f).Padding(4).Text(linha.DescricaoProduto);
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"{linha.Quantidade:N2}");
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"€ {linha.PrecoUnitario:N2}");
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"€ {linha.Desconto:N2}");
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"€ {linha.SubTotal:N2}");
+                        }
+                    });
+
+                    col.Item().PaddingTop(15).AlignRight().Text($"TOTAL: € {fatura.Total:N2}").FontSize(14).SemiBold();
+                });
+
+                page.Footer().AlignCenter().Text($"Documento processado por SGCLC em {DateTime.Now:dd/MM/yyyy HH:mm}")
+                    .FontSize(8);
+            });
+        }).GeneratePdf();
+    }
 
     private static FaturaDto MapToDto(Fatura f) => new(
         f.Id, f.Numero, f.Loja?.Nome ?? "", f.NomeCliente ?? "", f.NIFCliente ?? "",
