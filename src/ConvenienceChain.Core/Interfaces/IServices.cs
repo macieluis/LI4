@@ -68,6 +68,7 @@ public interface IFaturaService
     Task<IEnumerable<FaturaDto>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null);
     Task<IEnumerable<FaturaDto>> GetAllFaturasAsync(DateTime? de = null, DateTime? ate = null);
     Task<FaturaDto?> GetByIdAsync(int id);
+    Task<IEnumerable<LinhaFaturaDto>> GetLinhasAsync(int faturaId);
     Task<FaturaDto> EmitirAsync(EmitirFaturaDto dto);
     Task<byte[]> ExportPdfAsync(int faturaId);
 }

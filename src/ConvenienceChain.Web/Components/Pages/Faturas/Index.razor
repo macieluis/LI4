@@ -61,7 +61,7 @@ else if (faturas is not null && faturas.Any())
                 <tbody>
                     @foreach (var f in faturas)
                     {
-                        <tr>
+                        <tr style="cursor:pointer" @onclick="() => AbrirDetalhe(f.Id)">
                             <td class="fw-medium">@f.Numero</td>
                             <td>@f.DataEmissao.ToString("dd/MM/yyyy HH:mm")</td>
                             <td class="small text-muted">@(string.IsNullOrEmpty(f.NomeCliente) ? "Consumidor Final" : f.NomeCliente)</td>
@@ -100,6 +100,8 @@ else
         if (!Session.IsAuthenticated) return;
         await Pesquisar();
     }
+
+    private void AbrirDetalhe(int id) => Nav.NavigateTo($"/faturas/{id}");
 
     private async Task Pesquisar()
     {

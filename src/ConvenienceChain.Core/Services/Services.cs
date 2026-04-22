@@ -761,6 +761,15 @@ public class FaturaService : IFaturaService
         return f is null ? null : MapToDto(f);
     }
 
+    public async Task<IEnumerable<LinhaFaturaDto>> GetLinhasAsync(int faturaId)
+    {
+        var fatura = await _repo.GetByIdAsync(faturaId)
+            ?? throw new KeyNotFoundException($"Fatura {faturaId} não encontrada.");
+        return fatura.Linhas
+            .Select(l => new LinhaFaturaDto(l.DescricaoProduto, l.Quantidade, l.PrecoUnitario, l.Desconto))
+            .ToList();
+    }
+
     public async Task<FaturaDto> EmitirAsync(EmitirFaturaDto dto)
     {
         var numero = await _repo.GetNextNumeroAsync(dto.LojaId);

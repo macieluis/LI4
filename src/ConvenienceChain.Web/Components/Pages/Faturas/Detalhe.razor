@@ -1,0 +1,132 @@
+@page "/faturas/{Id:int}"
+@using ConvenienceChain.Core.DTOs
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject IFaturaService FaturaSvc
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject SessionService Session
+
+<PageTitle>Fatura @_fatura?.Numero – SGCLC</PageTitle>
+
+@if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="container mt-3">
+    @if (_fatura is null)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h3 class="mb-1"><i class="bi bi-receipt me-2 text-primary"></i>Fatura @_fatura.Numero</h3>
+                <span class="badge bg-@EstadoCor(_fatura.Estado)">@_fatura.Estado</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" @onclick="Voltar">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar
+                </button>
+                <button class="btn btn-outline-danger" @onclick="ExportarPdf">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light"><strong>Dados da Fatura</strong></div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Número:</strong> @_fatura.Numero</p>
+                        <p class="mb-1"><strong>Data de Emissão:</strong> @_fatura.DataEmissao.ToString("dd/MM/yyyy HH:mm")</p>
+                        <p class="mb-1"><strong>Loja:</strong> @_fatura.NomeLoja</p>
+                        <p class="mb-0"><strong>Estado:</strong> <span class="badge bg-@EstadoCor(_fatura.Estado)">@_fatura.Estado</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light"><strong>Dados do Cliente</strong></div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Nome:</strong> @(string.IsNullOrEmpty(_fatura.NomeCliente) ? "Consumidor Final" : _fatura.NomeCliente)</p>
+                        <p class="mb-0"><strong>NIF:</strong> @(string.IsNullOrEmpty(_fatura.NIFCliente) ? "—" : _fatura.NIFCliente)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-light"><strong>Linhas da Fatura</strong></div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            <th class="text-end">Quantidade</th>
+                            <th class="text-end">Preço Unitário</th>
+                            <th class="text-end">Desconto</th>
+                            <th class="text-end">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (_linhas is not null)
+                        {
+                            @foreach (var linha in _linhas)
+                            {
+                                <tr>
+                                    <td>@linha.Descricao</td>
+                                    <td class="text-end">@linha.Quantidade.ToString("N2")</td>
+                                    <td class="text-end">€ @linha.PrecoUnitario.ToString("N2")</td>
+                                    <td class="text-end">€ @linha.Desconto.ToString("N2")</td>
+                                    <td class="text-end fw-semibold">€ @((linha.Quantidade * linha.PrecoUnitario - linha.Desconto).ToString("N2"))</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-dark">
+                            <td colspan="4" class="text-end"><strong>TOTAL</strong></td>
+                            <td class="text-end"><strong>€ @_fatura.Total.ToString("N2")</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private FaturaDto? _fatura;
+    private IEnumerable<LinhaFaturaDto>? _linhas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) return;
+        _fatura = await FaturaSvc.GetByIdAsync(Id);
+        if (_fatura is not null)
+            _linhas = await FaturaSvc.GetLinhasAsync(Id);
+    }
+
+    private static string EstadoCor(string estado) => estado switch
+    {
+        "Emitida" => "primary",
+        "Paga" => "success",
+        "Anulada" => "danger",
+        _ => "secondary"
+    };
+
+    private void Voltar() => Nav.NavigateTo("/faturas");
+
+    private async Task ExportarPdf()
+    {
+        if (_fatura is null) return;
+        var bytes = await FaturaSvc.ExportPdfAsync(Id);
+        await JS.InvokeVoidAsync("downloadFile",
+            $"fatura_{_fatura.Numero}.pdf", "application/pdf",
+            Convert.ToBase64String(bytes));
+    }
+}
