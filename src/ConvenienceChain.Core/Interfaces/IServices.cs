@@ -75,7 +75,7 @@ public interface IFaturaService
 
 public interface IConsolidacaoService
 {
-    Task ConsolidarTodasAsync(DateOnly data);
+    Task<ConsolidacaoResumoDto> ConsolidarTodasAsync(DateOnly data);
     Task<ConsolidacaoDto> ConsolidarLojaAsync(int lojaId, DateOnly data);
     Task<IEnumerable<ConsolidacaoDto>> GetHistoricoAsync(int? lojaId = null);
 }

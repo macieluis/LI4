@@ -47,6 +47,7 @@ public record FaturaDto(int Id, string Numero, string NomeLoja, string NomeClien
 // --- Consolidacao ---
 public record ConsolidacaoDto(int Id, int LojaId, string NomeLoja, DateOnly DataConsolidacao,
     DateTime DataHoraExecucao, decimal TotalVendas, int NumeroTransacoes, decimal TotalDescontos, string Resultado, string? Erro);
+public record ConsolidacaoResumoDto(int Sucessos, int Falhas, IEnumerable<int> LojasComFalha);
 
 // --- Dashboard ---
 public record DashboardLojaDto(int LojaId, string NomeLoja, decimal TotalVendasHoje,

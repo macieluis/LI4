@@ -53,29 +53,72 @@ public class ConsolidacaoBackgroundService : BackgroundService
                 break;
             }
 
-            await ExecutarConsolidacaoAsync();
+            await ExecutarConsolidacaoAsync(stoppingToken);
 
             // Aguardar 1 minuto para não repetir no mesmo minuto
             await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
         }
     }
 
-    private async Task ExecutarConsolidacaoAsync()
+    private async Task ExecutarConsolidacaoAsync(CancellationToken ct)
     {
-        _logger.LogInformation("A iniciar consolidação diária de {Data}...", DateTime.Today.AddDays(-1));
+        var data = DateOnly.FromDateTime(DateTime.Today.AddDays(-1)); // ontem
+        var retryMinutes = int.TryParse(_config["Consolidacao:RetryIntervalMinutes"], out var m) ? m : 30;
+        const int MAX_TENTATIVAS = 3;
 
-        using var scope = _services.CreateScope();
-        var consolidacaoService = scope.ServiceProvider.GetRequiredService<IConsolidacaoService>();
+        for (var tentativa = 1; tentativa <= MAX_TENTATIVAS && !ct.IsCancellationRequested; tentativa++)
+        {
+            _logger.LogInformation("Consolidação tentativa {Tent}/{Max} para {Data}...",
+                tentativa, MAX_TENTATIVAS, data);
 
-        try
-        {
-            var data = DateOnly.FromDateTime(DateTime.Today.AddDays(-1)); // ontem
-            await consolidacaoService.ConsolidarTodasAsync(data);
-            _logger.LogInformation("Consolidação concluída com sucesso para {Data}.", data);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro durante a consolidação diária automática.");
+            using var scope = _services.CreateScope();
+            var consolidacaoService = scope.ServiceProvider.GetRequiredService<IConsolidacaoService>();
+
+            try
+            {
+                var resumo = await consolidacaoService.ConsolidarTodasAsync(data);
+                _logger.LogInformation("Consolidação: {S} sucessos, {F} falhas.",
+                    resumo.Sucessos, resumo.Falhas);
+
+                if (resumo.Falhas == 0)
+                {
+                    _logger.LogInformation("Consolidação concluída com sucesso total.");
+                    return;
+                }
+
+                if (tentativa == MAX_TENTATIVAS)
+                {
+                    _logger.LogError("Consolidação falhou em {F} loja(s) após {Max} tentativas: {Lojas}",
+                        resumo.Falhas, MAX_TENTATIVAS, string.Join(",", resumo.LojasComFalha));
+
+                    try
+                    {
+                        var notifSvc = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                        await notifSvc.NotifyGestoresAsync(
+                            $"Consolidação de {data:dd/MM/yyyy} falhou em {resumo.Falhas} loja(s) após {MAX_TENTATIVAS} tentativas.",
+                            "Error");
+                    }
+                    catch (Exception nex)
+                    {
+                        _logger.LogError(nex, "Falha ao enviar notificação de consolidação aos Gestores.");
+                    }
+                    return;
+                }
+
+                _logger.LogWarning("Aguardando {Min} minuto(s) antes da próxima tentativa...", retryMinutes);
+                await Task.Delay(TimeSpan.FromMinutes(retryMinutes), ct);
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro na tentativa {Tent} da consolidação.", tentativa);
+                if (tentativa == MAX_TENTATIVAS) return;
+                try { await Task.Delay(TimeSpan.FromMinutes(retryMinutes), ct); }
+                catch (TaskCanceledException) { return; }
+            }
         }
     }
 }

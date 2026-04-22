@@ -289,11 +289,20 @@ public class ConsolidacaoService : IConsolidacaoService
         _lojaRepo = lojaRepo;
     }
 
-    public async Task ConsolidarTodasAsync(DateOnly data)
+    public async Task<ConsolidacaoResumoDto> ConsolidarTodasAsync(DateOnly data)
     {
         var lojas = await _lojaRepo.GetAllActiveAsync();
+        var sucessos = 0;
+        var falhas = new List<int>();
+
         foreach (var loja in lojas)
-            await ConsolidarLojaAsync(loja.Id, data);
+        {
+            var r = await ConsolidarLojaAsync(loja.Id, data);
+            if (r.Resultado == nameof(ResultadoConsolidacao.Sucesso)) sucessos++;
+            else falhas.Add(loja.Id);
+        }
+
+        return new ConsolidacaoResumoDto(sucessos, falhas.Count, falhas);
     }
 
     public async Task<ConsolidacaoDto> ConsolidarLojaAsync(int lojaId, DateOnly data)
