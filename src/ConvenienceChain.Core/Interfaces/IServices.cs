@@ -51,7 +51,7 @@ public interface IOrderService
     Task<EncomendaDto?> GetByIdAsync(int id);
     Task<EncomendaDto> CreateAsync(CreateEncomendaDto dto);
     Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas);
-    Task CancelAsync(int encomendaId);
+    Task CancelAsync(int encomendaId, string motivo, string userId);
 }
 
 public interface IFornecedorService

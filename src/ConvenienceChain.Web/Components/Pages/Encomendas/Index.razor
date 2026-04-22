@@ -71,9 +71,12 @@
                                     <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
                                         <i class="bi bi-box-arrow-in-down"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Cancelar(e.Id)" title="Cancelar">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
+                                    @if (Session.IsGestorCadeia)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirCancelar(e)" title="Cancelar">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    }
                                 }
                             </td>
                         </tr>
@@ -208,6 +211,35 @@
     </div>
 }
 
+@if (modalCancelar && encomendaACancelar is not null)
+{
+    <div class="modal show d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Cancelar Encomenda #@encomendaACancelar.Id</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalCancelar = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Indique o motivo do cancelamento (obrigatório):</p>
+                    <textarea class="form-control" rows="3" @bind="motivoCancelamento" placeholder="Ex: Fornecedor indisponível, produtos em falta..."></textarea>
+                    @if (!string.IsNullOrEmpty(erroCancelamento))
+                    {
+                        <div class="alert alert-danger py-2 small mt-2">@erroCancelamento</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => modalCancelar = false" disabled="@a_cancelando">Voltar</button>
+                    <button class="btn btn-danger btn-sm" @onclick="ConfirmarCancelar" disabled="@a_cancelando">
+                        @if (a_cancelando) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-x-circle me-1"></i>Confirmar Cancelamento
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<EncomendaDto> todas = new(), encomendas = new();
     private List<Core.Entities.Fornecedor> fornecedores = new();
@@ -261,14 +293,34 @@
         sucessoMsg = "Encomenda criada com sucesso!";
     }
 
-    private async Task Cancelar(int id)
+    private void AbrirCancelar(EncomendaDto e)
     {
-        await OrderSvc.CancelAsync(id);
-        var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
-        todas = lojaId.HasValue
-            ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
-            : (await OrderSvc.GetPendentesAsync()).ToList();
-        Filtrar();
+        encomendaACancelar = e;
+        motivoCancelamento = "";
+        erroCancelamento = null;
+        modalCancelar = true;
+    }
+
+    private async Task ConfirmarCancelar()
+    {
+        erroCancelamento = null;
+        if (string.IsNullOrWhiteSpace(motivoCancelamento))
+        { erroCancelamento = "O motivo do cancelamento é obrigatório."; return; }
+
+        a_cancelando = true;
+        try
+        {
+            await OrderSvc.CancelAsync(encomendaACancelar!.Id, motivoCancelamento, Session.UserId!);
+            modalCancelar = false;
+            var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
+            todas = lojaId.HasValue
+                ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
+                : (await OrderSvc.GetPendentesAsync()).ToList();
+            Filtrar();
+            sucessoMsg = $"Encomenda #{encomendaACancelar.Id} cancelada.";
+        }
+        catch (Exception ex) { erroCancelamento = ex.Message; }
+        a_cancelando = false;
     }
 
     private void AbrirRececao(EncomendaDto e)
@@ -305,6 +357,13 @@
         catch (Exception ex) { erroRececao = ex.Message; }
         a_rececionando = false;
     }
+
+    // Estado do modal de cancelamento
+    private bool modalCancelar;
+    private bool a_cancelando;
+    private EncomendaDto? encomendaACancelar;
+    private string motivoCancelamento = "";
+    private string? erroCancelamento;
 
     private class LinhaInput { public int ProdutoId { get; set; } public int Quantidade { get; set; } = 1; }
     private class RecLinhaInput

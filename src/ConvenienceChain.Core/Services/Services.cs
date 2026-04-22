@@ -406,11 +406,12 @@ public class OrderService : IOrderService
     private readonly IEncomendaRepository _repo;
     private readonly IStockRepository _stockRepo;
     private readonly INotificationService _notifSvc;
+    private readonly IUtilizadorRepository _userRepo;
 
     public OrderService(IEncomendaRepository repo, IStockRepository stockRepo,
-        INotificationService notifSvc)
+        INotificationService notifSvc, IUtilizadorRepository userRepo)
     {
-        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc;
+        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc; _userRepo = userRepo;
     }
 
     public async Task<IEnumerable<EncomendaDto>> GetByLojaAsync(int lojaId) =>
@@ -469,10 +470,22 @@ public class OrderService : IOrderService
         return MapToDto(enc);
     }
 
-    public async Task CancelAsync(int encomendaId)
+    public async Task CancelAsync(int encomendaId, string motivo, string userId)
     {
-        var enc = await _repo.GetByIdAsync(encomendaId) ?? throw new KeyNotFoundException();
+        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new ArgumentException("O motivo do cancelamento é obrigatório.", nameof(motivo));
+
+        var enc = await _repo.GetByIdAsync(encomendaId)
+            ?? throw new KeyNotFoundException($"Encomenda {encomendaId} não encontrada.");
+        if (enc.Estado == EstadoEncomenda.Rececionada)
+            throw new InvalidOperationException("Não é possível cancelar uma encomenda já rececionada.");
+        if (enc.Estado == EstadoEncomenda.Cancelada)
+            throw new InvalidOperationException("Encomenda já está cancelada.");
+
         enc.Estado = EstadoEncomenda.Cancelada;
+        var stamp = $"[CANCELADA] {DateTime.UtcNow:yyyy-MM-dd HH:mm} — {motivo.Trim()}";
+        enc.Observacoes = string.IsNullOrWhiteSpace(enc.Observacoes) ? stamp : $"{enc.Observacoes}\n{stamp}";
         await _repo.UpdateAsync(enc);
     }
 
