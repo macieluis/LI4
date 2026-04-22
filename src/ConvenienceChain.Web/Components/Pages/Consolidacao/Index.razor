@@ -17,28 +17,37 @@
     </div>
     @if (Session.IsGestorCadeia)
     {
-        <button class="btn btn-primary" @onclick="ConsolidarHoje" disabled="@a_consolidar">
-            @if (a_consolidar) { <span class="spinner-border spinner-border-sm me-1"></span> }
-            <i class="bi bi-play-circle me-1"></i>Consolidar Hoje
+        <button class="btn btn-primary" @onclick="AbrirModal">
+            <i class="bi bi-play-circle me-1"></i>Executar Consolidação Manual
         </button>
     }
 </div>
 
-@if (!string.IsNullOrEmpty(mensagem))
+@if (_ultimoResumo is not null)
 {
-    <div class="alert alert-success alert-dismissible fade show">
-        <i class="bi bi-check-circle me-2"></i>@mensagem
-        <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+    var cor = _ultimoResumo.Falhas == 0 ? "success" : "warning";
+    <div class="alert alert-@cor alert-dismissible fade show">
+        <i class="bi bi-check-circle me-2"></i>
+        Consolidação concluída: @_ultimoResumo.Sucessos loja(s) com sucesso
+        @if (_ultimoResumo.Falhas > 0)
+        {
+            <span>, <strong>@_ultimoResumo.Falhas falha(s)</strong> (lojas: @string.Join(", ", _ultimoResumo.LojasComFalha)).</span>
+        }
+        else
+        {
+            <span>.</span>
+        }
+        <button type="button" class="btn-close" @onclick="() => _ultimoResumo = null"></button>
     </div>
 }
 
-@if (a_carregar)
+@if (_aCarregar)
 {
     <div class="d-flex justify-content-center my-5">
         <div class="spinner-border text-primary"></div>
     </div>
 }
-else if (historico is not null && historico.Any())
+else if (_historico is not null && _historico.Any())
 {
     <div class="card border-0 shadow-sm">
         <div class="card-body">
@@ -55,7 +64,7 @@ else if (historico is not null && historico.Any())
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var c in historico.OrderByDescending(x => x.DataConsolidacao))
+                    @foreach (var c in _historico.OrderByDescending(x => x.DataConsolidacao).ThenBy(x => x.NomeLoja))
                     {
                         <tr>
                             <td>@c.DataConsolidacao.ToString("dd/MM/yyyy")</td>
@@ -63,16 +72,7 @@ else if (historico is not null && historico.Any())
                             <td class="text-end fw-semibold">€@c.TotalVendas.ToString("N2")</td>
                             <td class="text-end">@c.NumeroTransacoes</td>
                             <td class="small text-muted">@c.DataHoraExecucao.ToString("dd/MM HH:mm")</td>
-                            <td>
-                                @if (c.Resultado == "Sucesso")
-                                {
-                                    <span class="badge bg-success">Sucesso</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-danger" title="@c.Erro">Falha</span>
-                                }
-                            </td>
+                            <td><span class="badge bg-@CorResultado(c.Resultado)" title="@c.Erro">@c.Resultado</span></td>
                         </tr>
                     }
                 </tbody>
@@ -84,29 +84,81 @@ else
 {
     <div class="text-center text-muted py-5">
         <i class="bi bi-arrow-repeat fs-1 d-block mb-2 opacity-25"></i>
-        Ainda não foram efetuadas consolidações. Clique em "Consolidar Hoje" para iniciar.
+        Ainda não foram efetuadas consolidações.
+        @if (Session.IsGestorCadeia) { <span>Clique em <strong>Executar Consolidação Manual</strong> para iniciar.</span> }
+    </div>
+}
+
+@if (_mostrarModal)
+{
+    <div class="modal show d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-play-circle me-2"></i>Consolidação Manual</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label fw-medium">Data a consolidar</label>
+                    <input type="date" class="form-control" @bind="_dataEscolhida" />
+                    <div class="form-text">Serão consolidadas todas as lojas ativas nesta data.</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="FecharModal" disabled="@_aExecutar">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="ExecutarAsync" disabled="@_aExecutar">
+                        @if (_aExecutar) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        Executar
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 }
 
 @code {
-    private IEnumerable<ConsolidacaoDto>? historico;
-    private bool a_carregar = true;
-    private bool a_consolidar;
-    private string? mensagem;
+    private IEnumerable<ConsolidacaoDto>? _historico;
+    private bool _aCarregar = true;
+    private bool _aExecutar;
+    private bool _mostrarModal;
+    private DateTime _dataEscolhida = DateTime.Today.AddDays(-1);
+    private ConsolidacaoResumoDto? _ultimoResumo;
 
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) return;
-        historico = await ConsSvc.GetHistoricoAsync();
-        a_carregar = false;
+        _historico = await ConsSvc.GetHistoricoAsync();
+        _aCarregar = false;
     }
 
-    private async Task ConsolidarHoje()
+    private void AbrirModal()
     {
-        a_consolidar = true;
-        await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(DateTime.Today));
-        historico = await ConsSvc.GetHistoricoAsync();
-        mensagem = $"Consolidação de {DateTime.Today:dd/MM/yyyy} concluída com sucesso!";
-        a_consolidar = false;
+        _ultimoResumo = null;
+        _dataEscolhida = DateTime.Today.AddDays(-1);
+        _mostrarModal = true;
     }
+
+    private void FecharModal() => _mostrarModal = false;
+
+    private async Task ExecutarAsync()
+    {
+        _aExecutar = true;
+        try
+        {
+            _ultimoResumo = await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(_dataEscolhida));
+            _historico = await ConsSvc.GetHistoricoAsync();
+        }
+        finally
+        {
+            _aExecutar = false;
+            _mostrarModal = false;
+        }
+    }
+
+    private static string CorResultado(string r) => r switch
+    {
+        "Sucesso" => "success",
+        "Parcial" => "warning",
+        "Falha" => "danger",
+        _ => "secondary"
+    };
 }
