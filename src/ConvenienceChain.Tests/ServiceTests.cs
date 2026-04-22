@@ -228,4 +228,206 @@ public class ProdutoServiceTests
         // Assert
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
+
+    [Fact]
+    public async Task CreateProduto_ComFuncionario_DeveLancarUnauthorizedAccessException()
+    {
+        // Arrange — sobrescrever mock para devolver Funcionário
+        _mockUserRepo.Setup(r => r.GetByIdAsync("func1"))
+            .ReturnsAsync(new Utilizador { Id = "func1", Papel = PapelUtilizador.Funcionario, Ativo = true });
+        var svc = CreateSvc();
+        var dto = new CreateProdutoDto("NOVO", "Teste", "", 1m, 2m, "unidade", 1, null);
+
+        // Act
+        var act = async () => await svc.CreateAsync(dto, "func1");
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Gestor*");
+    }
+}
+
+/// <summary>Testes ao OrderService — cancelamento com motivo e RBAC.</summary>
+public class OrderServiceTests
+{
+    private readonly Mock<IEncomendaRepository> _mockEncRepo = new();
+    private readonly Mock<IStockRepository> _mockStockRepo = new();
+    private readonly Mock<INotificationService> _mockNotif = new();
+    private readonly Mock<IUtilizadorRepository> _mockUserRepo = new();
+
+    public OrderServiceTests()
+    {
+        _mockUserRepo.Setup(r => r.GetByIdAsync("admin"))
+            .ReturnsAsync(new Utilizador { Id = "admin", Papel = PapelUtilizador.GestorCadeia, Ativo = true });
+        _mockUserRepo.Setup(r => r.GetByIdAsync("func"))
+            .ReturnsAsync(new Utilizador { Id = "func", Papel = PapelUtilizador.Funcionario, Ativo = true });
+    }
+
+    private OrderService CreateSvc() =>
+        new(_mockEncRepo.Object, _mockStockRepo.Object, _mockNotif.Object, _mockUserRepo.Object);
+
+    [Fact]
+    public async Task Cancel_SemMotivo_DeveLancarArgumentException()
+    {
+        // Arrange
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.CancelAsync(1, "   ", "admin");
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*motivo*");
+    }
+
+    [Fact]
+    public async Task Cancel_ComFuncionario_DeveLancarUnauthorizedAccessException()
+    {
+        // Arrange
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.CancelAsync(1, "motivo qualquer", "func");
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
+
+    [Fact]
+    public async Task Cancel_EncomendaRececionada_DeveLancarInvalidOperation()
+    {
+        // Arrange
+        var enc = new Encomenda { Id = 1, Estado = EstadoEncomenda.Rececionada, Observacoes = "" };
+        _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.CancelAsync(1, "motivo", "admin");
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*rececionada*");
+    }
+}
+
+/// <summary>Testes ao NotificationService.</summary>
+public class NotificationServiceTests
+{
+    private readonly Mock<INotificacaoRepository> _mockRepo = new();
+
+    [Fact]
+    public async Task NotifyGestores_DevePersistirComDestinatarioNull()
+    {
+        // Arrange
+        Notificacao? persistida = null;
+        _mockRepo.Setup(r => r.AddAsync(It.IsAny<Notificacao>()))
+            .Callback<Notificacao>(n => persistida = n)
+            .ReturnsAsync((Notificacao n) => n);
+        var svc = new NotificationService(_mockRepo.Object);
+
+        // Act
+        await svc.NotifyGestoresAsync("Teste", "Warning");
+
+        // Assert
+        persistida.Should().NotBeNull();
+        persistida!.DestinatarioId.Should().BeNull();
+        persistida.Mensagem.Should().Be("Teste");
+        persistida.Tipo.Should().Be("Warning");
+        _mockRepo.Verify(r => r.AddAsync(It.IsAny<Notificacao>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task MarcarComoLida_DeveAtualizarFlag()
+    {
+        // Arrange
+        var n = new Notificacao { Id = 1, Mensagem = "x", Lida = false };
+        _mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(n);
+        var svc = new NotificationService(_mockRepo.Object);
+
+        // Act
+        await svc.MarcarComoLidaAsync(1);
+
+        // Assert
+        n.Lida.Should().BeTrue();
+        _mockRepo.Verify(r => r.UpdateAsync(n), Times.Once);
+    }
+}
+
+/// <summary>Testes aos exports PDF/CSV do ReportService e PDF da Fatura.</summary>
+public class ExportServiceTests
+{
+    [Fact]
+    public async Task ExportRelatorioVendasPdf_DeveRetornarBytesNaoVazios()
+    {
+        // Arrange — mocks vazios são suficientes, o relatório vem todo a zero
+        var mockVendaRepo = new Mock<IVendaRepository>();
+        var mockLojaRepo = new Mock<ILojaRepository>();
+        var mockStockRepo = new Mock<IStockRepository>();
+        var mockEncRepo = new Mock<IEncomendaRepository>();
+        mockLojaRepo.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<Loja>());
+        mockVendaRepo.Setup(r => r.GetByLojaAsync(It.IsAny<int>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<Venda>());
+
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        var svc = new ReportService(mockVendaRepo.Object, mockLojaRepo.Object, mockStockRepo.Object, mockEncRepo.Object);
+
+        // Act
+        var bytes = await svc.ExportRelatorioVendasPdfAsync(null, DateTime.Today.AddDays(-7), DateTime.Today);
+
+        // Assert
+        bytes.Should().NotBeNull();
+        bytes.Length.Should().BeGreaterThan(100); // um PDF válido pesa muito mais
+        // PDFs começam com a assinatura ASCII "%PDF"
+        System.Text.Encoding.ASCII.GetString(bytes, 0, 4).Should().Be("%PDF");
+    }
+
+    [Fact]
+    public async Task ExportRelatorioVendasCsv_DeveIncluirCabecalho()
+    {
+        // Arrange
+        var mockVendaRepo = new Mock<IVendaRepository>();
+        var mockLojaRepo = new Mock<ILojaRepository>();
+        var mockStockRepo = new Mock<IStockRepository>();
+        var mockEncRepo = new Mock<IEncomendaRepository>();
+        mockLojaRepo.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<Loja>());
+        mockVendaRepo.Setup(r => r.GetByLojaAsync(It.IsAny<int>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<Venda>());
+        var svc = new ReportService(mockVendaRepo.Object, mockLojaRepo.Object, mockStockRepo.Object, mockEncRepo.Object);
+
+        // Act
+        var bytes = await svc.ExportRelatorioVendasCsvAsync(null, DateTime.Today.AddDays(-7), DateTime.Today);
+        var text = System.Text.Encoding.UTF8.GetString(bytes);
+
+        // Assert
+        text.Should().Contain("Relatório de Vendas SGCLC");
+        text.Should().Contain("Top 10 Produtos");
+    }
+
+    [Fact]
+    public async Task ExportFaturaPdf_DeveRetornarBytesNaoVazios()
+    {
+        // Arrange
+        var mockRepo = new Mock<IFaturaRepository>();
+        var fatura = new Fatura
+        {
+            Id = 1, Numero = "F2026/001", NomeCliente = "Cliente Teste",
+            NIFCliente = "123456789", MoradaCliente = "R. Teste, 1",
+            DataEmissao = DateTime.UtcNow, Total = 10m,
+            Linhas = new List<LinhaFatura>
+            {
+                new() { DescricaoProduto = "Item A", Quantidade = 1, PrecoUnitario = 10m, Desconto = 0 }
+            }
+        };
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fatura);
+
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        var svc = new FaturaService(mockRepo.Object);
+
+        // Act
+        var bytes = await svc.ExportPdfAsync(1);
+
+        // Assert
+        bytes.Length.Should().BeGreaterThan(100);
+        System.Text.Encoding.ASCII.GetString(bytes, 0, 4).Should().Be("%PDF");
+    }
 }
