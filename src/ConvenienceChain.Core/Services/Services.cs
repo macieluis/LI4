@@ -2,6 +2,8 @@ using ConvenienceChain.Core.DTOs;
 using ConvenienceChain.Core.Entities;
 using ConvenienceChain.Core.Enums;
 using ConvenienceChain.Core.Interfaces;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace ConvenienceChain.Core.Services;
 
@@ -512,11 +514,140 @@ public class ReportService : IReportService
         return new RelatorioVendasDto(totalVendas, nrTransacoes, ticketMedio, porCategoria, topProdutos, porDia);
     }
 
-    public Task<byte[]> ExportRelatorioVendasPdfAsync(int? lojaId, DateTime de, DateTime ate) =>
-        Task.FromResult(Array.Empty<byte>()); // Implementar com QuestPDF
+    public async Task<byte[]> ExportRelatorioVendasPdfAsync(int? lojaId, DateTime de, DateTime ate)
+    {
+        var relatorio = await GetRelatorioVendasAsync(lojaId, de, ate);
+        var nomeLoja = lojaId.HasValue
+            ? (await _lojaRepo.GetByIdAsync(lojaId.Value))?.Nome ?? "Loja desconhecida"
+            : "Todas as lojas";
 
-    public Task<byte[]> ExportRelatorioVendasCsvAsync(int? lojaId, DateTime de, DateTime ate) =>
-        Task.FromResult(Array.Empty<byte>()); // Implementar com CsvHelper
+        var bytes = QuestPDF.Fluent.Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Margin(40);
+                page.Size(QuestPDF.Helpers.PageSizes.A4);
+                page.DefaultTextStyle(x => x.FontSize(10));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().Text("SGCLC — Relatório de Vendas")
+                        .FontSize(18).SemiBold().FontColor(QuestPDF.Helpers.Colors.Blue.Darken2);
+                    col.Item().Text($"Loja: {nomeLoja}  |  Período: {de:dd/MM/yyyy} a {ate:dd/MM/yyyy}")
+                        .FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Darken1);
+                    col.Item().PaddingTop(5).LineHorizontal(1);
+                });
+
+                page.Content().PaddingVertical(10).Column(col =>
+                {
+                    col.Item().Row(row =>
+                    {
+                        row.RelativeItem().Border(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Padding(8).Column(c =>
+                        {
+                            c.Item().Text("Total Vendas").FontSize(9);
+                            c.Item().Text($"€ {relatorio.TotalVendas:N2}").FontSize(14).SemiBold();
+                        });
+                        row.RelativeItem().Border(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Padding(8).Column(c =>
+                        {
+                            c.Item().Text("Nº Transações").FontSize(9);
+                            c.Item().Text($"{relatorio.NrTransacoes}").FontSize(14).SemiBold();
+                        });
+                        row.RelativeItem().Border(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Padding(8).Column(c =>
+                        {
+                            c.Item().Text("Ticket Médio").FontSize(9);
+                            c.Item().Text($"€ {relatorio.TicketMedio:N2}").FontSize(14).SemiBold();
+                        });
+                    });
+
+                    col.Item().PaddingTop(20).Text("Vendas por Categoria").FontSize(12).SemiBold();
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(1); c.RelativeColumn(1); });
+                        table.Header(h =>
+                        {
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).Text("Categoria").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Qtd").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Total").SemiBold();
+                        });
+                        foreach (var c in relatorio.PorCategoria)
+                        {
+                            table.Cell().BorderBottom(0.5f).Padding(4).Text(c.Categoria);
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"{c.Quantidade:N0}");
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"€ {c.Total:N2}");
+                        }
+                    });
+
+                    col.Item().PaddingTop(20).Text("Top 10 Produtos").FontSize(12).SemiBold();
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(1); c.RelativeColumn(1); });
+                        table.Header(h =>
+                        {
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).Text("Produto").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Qtd").SemiBold();
+                            h.Cell().Background(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Total").SemiBold();
+                        });
+                        foreach (var p in relatorio.TopProdutos)
+                        {
+                            table.Cell().BorderBottom(0.5f).Padding(4).Text(p.Produto);
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"{p.QuantidadeTotal:N0}");
+                            table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"€ {p.TotalVendas:N2}");
+                        }
+                    });
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("SGCLC — QuickMart  |  Página ").FontSize(8);
+                    x.CurrentPageNumber().FontSize(8);
+                    x.Span(" de ").FontSize(8);
+                    x.TotalPages().FontSize(8);
+                });
+            });
+        }).GeneratePdf();
+
+        return bytes;
+    }
+
+    public async Task<byte[]> ExportRelatorioVendasCsvAsync(int? lojaId, DateTime de, DateTime ate)
+    {
+        var relatorio = await GetRelatorioVendasAsync(lojaId, de, ate);
+
+        using var memStream = new MemoryStream();
+        using var writer = new StreamWriter(memStream, new System.Text.UTF8Encoding(true));
+        using var csv = new CsvHelper.CsvWriter(writer, System.Globalization.CultureInfo.GetCultureInfo("pt-PT"));
+
+        csv.WriteField("Relatório de Vendas SGCLC"); csv.NextRecord();
+        csv.WriteField("Período"); csv.WriteField($"{de:yyyy-MM-dd} a {ate:yyyy-MM-dd}"); csv.NextRecord();
+        csv.WriteField("Total Vendas"); csv.WriteField(relatorio.TotalVendas); csv.NextRecord();
+        csv.WriteField("Nº Transações"); csv.WriteField(relatorio.NrTransacoes); csv.NextRecord();
+        csv.WriteField("Ticket Médio"); csv.WriteField(relatorio.TicketMedio); csv.NextRecord();
+        csv.NextRecord();
+
+        csv.WriteField("Vendas por Categoria"); csv.NextRecord();
+        csv.WriteField("Categoria"); csv.WriteField("Quantidade"); csv.WriteField("Total"); csv.NextRecord();
+        foreach (var c in relatorio.PorCategoria)
+        {
+            csv.WriteField(c.Categoria);
+            csv.WriteField(c.Quantidade);
+            csv.WriteField(c.Total);
+            csv.NextRecord();
+        }
+        csv.NextRecord();
+
+        csv.WriteField("Top 10 Produtos"); csv.NextRecord();
+        csv.WriteField("Produto"); csv.WriteField("QuantidadeTotal"); csv.WriteField("TotalVendas"); csv.NextRecord();
+        foreach (var p in relatorio.TopProdutos)
+        {
+            csv.WriteField(p.Produto);
+            csv.WriteField(p.QuantidadeTotal);
+            csv.WriteField(p.TotalVendas);
+            csv.NextRecord();
+        }
+
+        await writer.FlushAsync();
+        return memStream.ToArray();
+    }
 }
 
 /// <summary>Serviço de gestão de fornecedores.</summary>

@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Licença QuestPDF (Community para OSS/projeto académico) ──
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 // ── Blazor Server ──────────────────────────────────────────────
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

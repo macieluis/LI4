@@ -4,6 +4,7 @@
 @using ConvenienceChain.Web.Services
 @inject IReportService ReportSvc
 @inject SessionService Session
+@inject IJSRuntime JS
 
 <PageTitle>Relatórios de Vendas – SGCLC</PageTitle>
 
@@ -188,6 +189,25 @@ else if (!a_carregar)
         a_carregar = false;
     }
 
-    private void ExportarPdf() { /* TODO */ }
-    private void ExportarCsv() { /* TODO */ }
+    private async Task ExportarPdf()
+    {
+        var lojaId = Session.IsGestorCadeia
+            ? (filtroLojaId == 0 ? (int?)null : filtroLojaId)
+            : Session.LojaId;
+        var bytes = await ReportSvc.ExportRelatorioVendasPdfAsync(lojaId, dataInicio, dataFim);
+        await JS.InvokeVoidAsync("downloadFile",
+            $"relatorio_vendas_{dataInicio:yyyyMMdd}_{dataFim:yyyyMMdd}.pdf",
+            "application/pdf", Convert.ToBase64String(bytes));
+    }
+
+    private async Task ExportarCsv()
+    {
+        var lojaId = Session.IsGestorCadeia
+            ? (filtroLojaId == 0 ? (int?)null : filtroLojaId)
+            : Session.LojaId;
+        var bytes = await ReportSvc.ExportRelatorioVendasCsvAsync(lojaId, dataInicio, dataFim);
+        await JS.InvokeVoidAsync("downloadFile",
+            $"relatorio_vendas_{dataInicio:yyyyMMdd}_{dataFim:yyyyMMdd}.csv",
+            "text/csv", Convert.ToBase64String(bytes));
+    }
 }
