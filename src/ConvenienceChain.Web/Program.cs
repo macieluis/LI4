@@ -32,6 +32,7 @@ builder.Services.AddScoped<IConsolidacaoRepository, ConsolidacaoRepository>();
 builder.Services.AddScoped<IUtilizadorRepository, UtilizadorRepository>();
 builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
 builder.Services.AddScoped<IAjusteStockRepository, AjusteStockRepository>();
+builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
 
 // ── Serviços de Aplicação ─────────────────────────────────────
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -44,6 +45,7 @@ builder.Services.AddScoped<IFaturaService, FaturaService>();
 builder.Services.AddScoped<IConsolidacaoService, ConsolidacaoService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IUtilizadorService, UtilizadorService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // ── Sessão do utilizador ──────────────────────────────────────
 builder.Services.AddSingleton<SessionService>();

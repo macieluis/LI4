@@ -104,3 +104,11 @@ public interface IAjusteStockRepository
     Task<IEnumerable<AjusteStock>> GetByLojaAsync(int lojaId, DateTime? de = null, DateTime? ate = null);
     Task<AjusteStock> AddAsync(AjusteStock ajuste);
 }
+
+public interface INotificacaoRepository
+{
+    Task<IEnumerable<Notificacao>> GetNaoLidasParaUtilizadorAsync(string userId);
+    Task<Notificacao?> GetByIdAsync(int id);
+    Task<Notificacao> AddAsync(Notificacao notificacao);
+    Task UpdateAsync(Notificacao notificacao);
+}

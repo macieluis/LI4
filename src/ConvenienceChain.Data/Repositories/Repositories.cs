@@ -348,3 +348,30 @@ public class AjusteStockRepository : IAjusteStockRepository
         return a;
     }
 }
+
+public class NotificacaoRepository : INotificacaoRepository
+{
+    private readonly AppDbContext _db;
+    public NotificacaoRepository(AppDbContext db) => _db = db;
+
+    public async Task<IEnumerable<Notificacao>> GetNaoLidasParaUtilizadorAsync(string userId) =>
+        await _db.Notificacoes
+            .Where(n => !n.Lida && (n.DestinatarioId == userId || n.DestinatarioId == null))
+            .OrderByDescending(n => n.DataHora)
+            .ToListAsync();
+
+    public async Task<Notificacao?> GetByIdAsync(int id) => await _db.Notificacoes.FindAsync(id);
+
+    public async Task<Notificacao> AddAsync(Notificacao notificacao)
+    {
+        _db.Notificacoes.Add(notificacao);
+        await _db.SaveChangesAsync();
+        return notificacao;
+    }
+
+    public async Task UpdateAsync(Notificacao notificacao)
+    {
+        _db.Notificacoes.Update(notificacao);
+        await _db.SaveChangesAsync();
+    }
+}

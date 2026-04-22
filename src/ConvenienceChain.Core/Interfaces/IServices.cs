@@ -89,6 +89,14 @@ public interface IReportService
     Task<byte[]> ExportRelatorioVendasCsvAsync(int? lojaId, DateTime de, DateTime ate);
 }
 
+public interface INotificationService
+{
+    Task NotifyAsync(string destinatarioId, string mensagem, string tipo = "Info");
+    Task NotifyGestoresAsync(string mensagem, string tipo = "Info");
+    Task<IEnumerable<Notificacao>> GetNaoLidasAsync(string userId);
+    Task MarcarComoLidaAsync(int notificacaoId);
+}
+
 public interface IUtilizadorService
 {
     Task<IEnumerable<Utilizador>> GetAllAsync();

@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<Consolidacao> Consolidacoes => Set<Consolidacao>();
     public DbSet<AjusteStock> AjustesStock => Set<AjusteStock>();
     public DbSet<Utilizador> Utilizadores => Set<Utilizador>();
+    public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -151,6 +152,16 @@ public class AppDbContext : DbContext
             e.Property(x => x.Papel).HasConversion<string>();
             e.HasOne(x => x.Loja).WithMany(x => x.Utilizadores)
              .HasForeignKey(x => x.LojaId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- Notificacao ---
+        modelBuilder.Entity<Notificacao>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Mensagem).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Tipo).HasMaxLength(20);
+            e.HasIndex(x => x.DestinatarioId);
+            e.HasIndex(x => x.Lida);
         });
     }
 }

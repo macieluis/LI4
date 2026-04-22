@@ -216,6 +216,17 @@ public class AjusteStock
     public Produto Produto { get; set; } = null!;
 }
 
+/// <summary>Notificação enviada a um utilizador ou grupo (Gestores se DestinatarioId=null).</summary>
+public class Notificacao
+{
+    public int Id { get; set; }
+    public string? DestinatarioId { get; set; }
+    public string Mensagem { get; set; } = string.Empty;
+    public DateTime DataHora { get; set; } = DateTime.UtcNow;
+    public bool Lida { get; set; } = false;
+    public string Tipo { get; set; } = "Info"; // Info | Warning | Error
+}
+
 /// <summary>Utilizador do sistema com papel e loja associada.</summary>
 public class Utilizador
 {

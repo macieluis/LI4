@@ -1,0 +1,65 @@
+@using ConvenienceChain.Core.Entities
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Web.Services
+@inject INotificationService NotifSvc
+@inject SessionService Session
+
+@if (Session.IsAuthenticated)
+{
+    <div class="dropdown">
+        <button class="btn btn-link text-white position-relative p-0 me-2"
+                type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                @onclick="CarregarAsync">
+            <i class="bi bi-bell fs-5"></i>
+            @if (_naoLidas is not null && _naoLidas.Any())
+            {
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    @_naoLidas.Count()
+                </span>
+            }
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:320px;max-width:400px">
+            <li><h6 class="dropdown-header">Notificações</h6></li>
+            @if (_naoLidas is null)
+            {
+                <li><span class="dropdown-item-text text-muted small">A carregar...</span></li>
+            }
+            else if (!_naoLidas.Any())
+            {
+                <li><span class="dropdown-item-text text-muted small">Sem notificações não lidas.</span></li>
+            }
+            else
+            {
+                @foreach (var n in _naoLidas.Take(10))
+                {
+                    <li>
+                        <button class="dropdown-item small py-2" @onclick="() => MarcarAsync(n.Id)">
+                            <div class="text-muted" style="font-size:.7rem">
+                                @n.DataHora.ToLocalTime().ToString("dd/MM HH:mm") — @n.Tipo
+                            </div>
+                            <div>@n.Mensagem</div>
+                        </button>
+                    </li>
+                }
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    private IEnumerable<Notificacao>? _naoLidas;
+
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        if (!Session.IsAuthenticated || Session.UserId is null) return;
+        _naoLidas = await NotifSvc.GetNaoLidasAsync(Session.UserId);
+    }
+
+    private async Task MarcarAsync(int id)
+    {
+        await NotifSvc.MarcarComoLidaAsync(id);
+        await CarregarAsync();
+    }
+}

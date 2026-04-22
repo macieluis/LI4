@@ -356,10 +356,12 @@ public class OrderService : IOrderService
 {
     private readonly IEncomendaRepository _repo;
     private readonly IStockRepository _stockRepo;
+    private readonly INotificationService _notifSvc;
 
-    public OrderService(IEncomendaRepository repo, IStockRepository stockRepo)
+    public OrderService(IEncomendaRepository repo, IStockRepository stockRepo,
+        INotificationService notifSvc)
     {
-        _repo = repo; _stockRepo = stockRepo;
+        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc;
     }
 
     public async Task<IEnumerable<EncomendaDto>> GetByLojaAsync(int lojaId) =>
@@ -387,6 +389,10 @@ public class OrderService : IOrderService
         };
         enc = await _repo.AddAsync(enc);
         var result = await _repo.GetByIdAsync(enc.Id);
+
+        await _notifSvc.NotifyGestoresAsync(
+            $"Nova encomenda #{enc.Id} criada na loja {result?.Loja?.Nome ?? dto.LojaId.ToString()}.");
+
         return MapToDto(result!);
     }
 
@@ -734,6 +740,44 @@ public class UtilizadorService : IUtilizadorService
         var u = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException();
         u.PasswordHash = BCrypt.Net.BCrypt.HashPassword(novaPassword);
         await _repo.UpdateAsync(u);
+    }
+}
+
+/// <summary>Serviço de notificações (ex: novas encomendas, falhas de consolidação).</summary>
+public class NotificationService : INotificationService
+{
+    private readonly INotificacaoRepository _repo;
+    public NotificationService(INotificacaoRepository repo) => _repo = repo;
+
+    public async Task NotifyAsync(string destinatarioId, string mensagem, string tipo = "Info")
+    {
+        await _repo.AddAsync(new Notificacao
+        {
+            DestinatarioId = destinatarioId,
+            Mensagem = mensagem,
+            Tipo = tipo
+        });
+    }
+
+    public async Task NotifyGestoresAsync(string mensagem, string tipo = "Info")
+    {
+        await _repo.AddAsync(new Notificacao
+        {
+            DestinatarioId = null, // broadcast a todos os Gestores
+            Mensagem = mensagem,
+            Tipo = tipo
+        });
+    }
+
+    public async Task<IEnumerable<Notificacao>> GetNaoLidasAsync(string userId) =>
+        await _repo.GetNaoLidasParaUtilizadorAsync(userId);
+
+    public async Task MarcarComoLidaAsync(int notificacaoId)
+    {
+        var n = await _repo.GetByIdAsync(notificacaoId);
+        if (n is null) return;
+        n.Lida = true;
+        await _repo.UpdateAsync(n);
     }
 }
 
