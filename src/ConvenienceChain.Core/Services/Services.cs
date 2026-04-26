@@ -359,7 +359,7 @@ public class ConsolidacaoService : IConsolidacaoService
             {
                 existing.TotalVendas = totalVendas;
                 existing.NumeroTransacoes = nrTransacoes;
-                existing.DataHoraExecucao = DateTime.UtcNow;
+                existing.DataHoraExecucao = DateTime.Now;
                 existing.Resultado = ResultadoConsolidacao.Sucesso;
                 await _consolidacaoRepo.UpdateAsync(existing);
                 return MapToDto(existing);
@@ -450,7 +450,7 @@ public class OrderService : IOrderService
     {
         var enc = await _repo.GetByIdAsync(encomendaId) ?? throw new KeyNotFoundException();
         enc.Estado = EstadoEncomenda.Rececionada;
-        enc.DataRececao = DateTime.UtcNow;
+        enc.DataRececao = DateTime.Now;
 
         foreach (var linha in linhas)
         {
@@ -484,7 +484,7 @@ public class OrderService : IOrderService
             throw new InvalidOperationException("Encomenda já está cancelada.");
 
         enc.Estado = EstadoEncomenda.Cancelada;
-        var stamp = $"[CANCELADA] {DateTime.UtcNow:yyyy-MM-dd HH:mm} — {motivo.Trim()}";
+        var stamp = $"[CANCELADA] {DateTime.Now:yyyy-MM-dd HH:mm} — {motivo.Trim()}";
         enc.Observacoes = string.IsNullOrWhiteSpace(enc.Observacoes) ? stamp : $"{enc.Observacoes}\n{stamp}";
         await _repo.UpdateAsync(enc);
     }
@@ -730,6 +730,7 @@ public class FornecedorService : IFornecedorService
 
     public async Task<IEnumerable<Fornecedor>> GetAllAsync() => await _repo.GetAllActiveAsync();
     public async Task<Fornecedor?> GetByIdAsync(int id) => await _repo.GetByIdAsync(id);
+    public async Task<IEnumerable<Produto>> GetProdutosAsync(int fornecedorId) => await _repo.GetProdutosAsync(fornecedorId);
 
     public async Task<Fornecedor> CreateAsync(CreateFornecedorDto dto, string userId)
     {

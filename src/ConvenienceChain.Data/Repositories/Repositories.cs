@@ -197,6 +197,13 @@ public class FornecedorRepository : IFornecedorRepository
     public async Task<IEnumerable<Fornecedor>> GetAllActiveAsync() =>
         await _db.Fornecedores.Where(f => f.Ativo).ToListAsync();
     public async Task<Fornecedor?> GetByIdAsync(int id) => await _db.Fornecedores.FindAsync(id);
+    public async Task<IEnumerable<Produto>> GetProdutosAsync(int fornecedorId) =>
+        await _db.Fornecedores
+            .Where(f => f.Id == fornecedorId)
+            .SelectMany(f => f.Produtos)
+            .Where(p => p.Ativo)
+            .OrderBy(p => p.Nome)
+            .ToListAsync();
     public async Task<Fornecedor> AddAsync(Fornecedor fornecedor)
     {
         _db.Fornecedores.Add(fornecedor);

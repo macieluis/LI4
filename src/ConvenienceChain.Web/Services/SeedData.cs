@@ -80,10 +80,30 @@ public static class SeedData
         }
         db.Stocks.AddRange(stk);
 
-        // ── Fornecedores ──────────────────────────────────────────
-        var forn1 = new Fornecedor { Nome = "Distribuidora Norte Lda.",  NIF = "509876543", Telefone = "253456789", Email = "encomendas@distnorte.pt" };
-        var forn2 = new Fornecedor { Nome = "Águas de Portugal S.A.",     NIF = "501234567", Telefone = "210234567", Email = "comercial@aguasportugal.pt" };
-        var forn3 = new Fornecedor { Nome = "SnackWorld Iberia",          NIF = "508765432", Telefone = "219876543", Email = "vendas@snackworld.pt" };
+        // ── Fornecedores (cada um com o seu catálogo de produtos) ─
+        var forn1 = new Fornecedor
+        {
+            Nome = "Distribuidora Norte Lda.", NIF = "509876543",
+            Telefone = "253456789", Email = "encomendas@distnorte.pt",
+            // Bebidas alcoólicas + lacticínios + congelados
+            Produtos = produtos.Where(p =>
+                p.Categoria == catBebAl || p.Categoria == catLact || p.Categoria == catCongelados
+            ).ToList()
+        };
+        var forn2 = new Fornecedor
+        {
+            Nome = "Águas de Portugal S.A.", NIF = "501234567",
+            Telefone = "210234567", Email = "comercial@aguasportugal.pt",
+            // Bebidas não alcoólicas
+            Produtos = produtos.Where(p => p.Categoria == catBebidas).ToList()
+        };
+        var forn3 = new Fornecedor
+        {
+            Nome = "SnackWorld Iberia", NIF = "508765432",
+            Telefone = "219876543", Email = "vendas@snackworld.pt",
+            // Snacks + higiene
+            Produtos = produtos.Where(p => p.Categoria == catSnacks || p.Categoria == catHig).ToList()
+        };
         db.Fornecedores.AddRange(forn1, forn2, forn3);
 
         await db.SaveChangesAsync();
@@ -99,7 +119,7 @@ public static class SeedData
 
         for (int i = 13; i >= 0; i--)
         {
-            var data = DateTime.UtcNow.AddDays(-i).Date.AddHours(10 + rng.Next(0, 8));
+            var data = DateTime.Now.AddDays(-i).Date.AddHours(10 + rng.Next(0, 8));
             var funcionario = i % 2 == 0 ? func1 : gerente1;
             var nrVendas = rng.Next(2, 6);
             for (int v = 0; v < nrVendas; v++)
@@ -146,7 +166,7 @@ public static class SeedData
         // Algumas vendas na loja2 (para o Gestor ver dados diferentes por loja)
         for (int i = 6; i >= 0; i--)
         {
-            var data = DateTime.UtcNow.AddDays(-i).Date.AddHours(9 + rng.Next(0, 6));
+            var data = DateTime.Now.AddDays(-i).Date.AddHours(9 + rng.Next(0, 6));
             var sub = Math.Round((decimal)(rng.NextDouble() * 15 + 5), 2);
             var venda = new Venda
             {

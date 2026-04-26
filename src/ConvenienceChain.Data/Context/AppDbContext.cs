@@ -56,6 +56,9 @@ public class AppDbContext : DbContext
             e.Property(x => x.Nome).HasMaxLength(200).IsRequired();
             e.Property(x => x.PrecoCusto).HasPrecision(18, 2);
             e.Property(x => x.PrecoBaseVenda).HasPrecision(18, 2);
+            e.HasMany(x => x.Fornecedores)
+             .WithMany(x => x.Produtos)
+             .UsingEntity(j => j.ToTable("FornecedorProduto"));
         });
 
         // --- Stock ---

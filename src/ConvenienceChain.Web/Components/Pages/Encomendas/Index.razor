@@ -4,7 +4,6 @@
 @using ConvenienceChain.Web.Services
 @inject IOrderService OrderSvc
 @inject IFornecedorService FornecedorSvc
-@inject IProdutoService ProdutoSvc
 @inject SessionService Session
 
 <PageTitle>Encomendas – SGCLC</PageTitle>
@@ -100,7 +99,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-medium">Fornecedor</label>
-                        <select class="form-select" @bind="novaEncFornecedorId">
+                        <select class="form-select" @bind="novaEncFornecedorId" @bind:after="OnFornecedorChanged">
                             <option value="0">-- Selecionar --</option>
                             @foreach (var f in fornecedores)
                             {
@@ -114,31 +113,42 @@
                     </div>
                     <hr />
                     <h6 class="fw-semibold">Produtos a encomendar</h6>
-                    @foreach (var linha in novaEncLinhas)
+                    @if (novaEncFornecedorId == 0)
                     {
-                        <div class="row g-2 align-items-center mb-2">
-                            <div class="col-7">
-                                <select class="form-select form-select-sm" @bind="linha.ProdutoId">
-                                    <option value="0">-- Produto --</option>
-                                    @foreach (var p in todosProdutos)
-                                    {
-                                        <option value="@p.Id">@p.Nome</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <input type="number" class="form-control form-control-sm" placeholder="Qtd" @bind="linha.Quantidade" min="1" />
-                            </div>
-                            <div class="col-2">
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => novaEncLinhas.Remove(linha)">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </div>
-                        </div>
+                        <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Selecione um fornecedor para ver os produtos disponíveis.</p>
                     }
-                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => novaEncLinhas.Add(new())">
-                        <i class="bi bi-plus me-1"></i>Adicionar Produto
-                    </button>
+                    else if (!produtosFornecedor.Any())
+                    {
+                        <p class="text-warning small mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Este fornecedor não tem produtos associados.</p>
+                    }
+                    else
+                    {
+                        @foreach (var linha in novaEncLinhas)
+                        {
+                            <div class="row g-2 align-items-center mb-2">
+                                <div class="col-7">
+                                    <select class="form-select form-select-sm" @bind="linha.ProdutoId">
+                                        <option value="0">-- Produto --</option>
+                                        @foreach (var p in produtosFornecedor)
+                                        {
+                                            <option value="@p.Id">@p.Nome</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" class="form-control form-control-sm" placeholder="Qtd" @bind="linha.Quantidade" min="1" />
+                                </div>
+                                <div class="col-2">
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => novaEncLinhas.Remove(linha)">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => novaEncLinhas.Add(new())">
+                            <i class="bi bi-plus me-1"></i>Adicionar Produto
+                        </button>
+                    }
                     @if (!string.IsNullOrEmpty(erroEncomenda))
                     {
                         <div class="alert alert-danger mt-2 py-2 small">@erroEncomenda</div>
@@ -243,7 +253,8 @@
 @code {
     private List<EncomendaDto> todas = new(), encomendas = new();
     private List<Core.Entities.Fornecedor> fornecedores = new();
-    private List<Core.Entities.Produto> todosProdutos = new();
+    private List<Core.Entities.Produto> produtosFornecedor = new();
+    private Dictionary<int, string> nomeProdutoCache = new();
     private bool a_carregar = true, modalNovaEncomenda, modalRececao;
     private string filtroEstado = "";
     private string? erroEncomenda, sucessoMsg;
@@ -265,8 +276,19 @@
             : (await OrderSvc.GetPendentesAsync()).ToList();
         encomendas = todas;
         fornecedores = (await FornecedorSvc.GetAllAsync()).ToList();
-        todosProdutos = (await ProdutoSvc.GetAllAsync()).ToList();
         a_carregar = false;
+    }
+
+    private async Task OnFornecedorChanged()
+    {
+        novaEncLinhas = new() { new() };
+        if (novaEncFornecedorId == 0)
+        {
+            produtosFornecedor = new();
+            return;
+        }
+        produtosFornecedor = (await FornecedorSvc.GetProdutosAsync(novaEncFornecedorId)).ToList();
+        foreach (var p in produtosFornecedor) nomeProdutoCache[p.Id] = p.Nome;
     }
 
     private void Filtrar()
@@ -323,13 +345,19 @@
         a_cancelando = false;
     }
 
-    private void AbrirRececao(EncomendaDto e)
+    private async Task AbrirRececao(EncomendaDto e)
     {
         encomendaARececionar = e;
+        // garantir que o cache tem os nomes dos produtos deste fornecedor
+        if (!e.Linhas.All(l => nomeProdutoCache.ContainsKey(l.ProdutoId)))
+        {
+            foreach (var p in await FornecedorSvc.GetProdutosAsync(e.FornecedorId))
+                nomeProdutoCache[p.Id] = p.Nome;
+        }
         rececaoLinhas = e.Linhas.Select(l => new RecLinhaInput
         {
             ProdutoId = l.ProdutoId,
-            NomeProduto = todosProdutos.FirstOrDefault(p => p.Id == l.ProdutoId)?.Nome ?? $"Produto {l.ProdutoId}",
+            NomeProduto = nomeProdutoCache.TryGetValue(l.ProdutoId, out var n) ? n : $"Produto {l.ProdutoId}",
             QuantidadePedida = l.QuantidadePedida,
             QuantidadeRecebida = l.QuantidadePedida // pré-preencher com quantidade pedida
         }).ToList();

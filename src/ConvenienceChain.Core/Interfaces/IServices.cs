@@ -58,6 +58,7 @@ public interface IFornecedorService
 {
     Task<IEnumerable<Fornecedor>> GetAllAsync();
     Task<Fornecedor?> GetByIdAsync(int id);
+    Task<IEnumerable<Produto>> GetProdutosAsync(int fornecedorId);
     Task<Fornecedor> CreateAsync(CreateFornecedorDto dto, string userId);
     Task UpdateAsync(int id, UpdateFornecedorDto dto, string userId);
     Task DeactivateAsync(int id, string userId);

@@ -52,6 +52,7 @@ public class Produto
     public ICollection<Stock> Stocks { get; set; } = new List<Stock>();
     public ICollection<LinhaVenda> LinhasVenda { get; set; } = new List<LinhaVenda>();
     public ICollection<LinhaEncomenda> LinhasEncomenda { get; set; } = new List<LinhaEncomenda>();
+    public ICollection<Fornecedor> Fornecedores { get; set; } = new List<Fornecedor>();
 }
 
 /// <summary>Stock de um produto numa loja específica.</summary>
@@ -80,7 +81,7 @@ public class Venda
     public int Id { get; set; }
     public int LojaId { get; set; }
     public string FuncionarioId { get; set; } = string.Empty;
-    public DateTime DataHora { get; set; } = DateTime.UtcNow;
+    public DateTime DataHora { get; set; } = DateTime.Now;
     public decimal SubTotal { get; set; }
     public decimal TotalDesconto { get; set; }
     public decimal Total { get; set; }
@@ -121,6 +122,7 @@ public class Fornecedor
     public bool Ativo { get; set; } = true;
 
     public ICollection<Encomenda> Encomendas { get; set; } = new List<Encomenda>();
+    public ICollection<Produto> Produtos { get; set; } = new List<Produto>();
 }
 
 /// <summary>Encomenda de reposição de uma loja a um fornecedor.</summary>
@@ -129,7 +131,7 @@ public class Encomenda
     public int Id { get; set; }
     public int LojaId { get; set; }
     public int FornecedorId { get; set; }
-    public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+    public DateTime DataCriacao { get; set; } = DateTime.Now;
     public DateTime? DataRececao { get; set; }
     public EstadoEncomenda Estado { get; set; } = EstadoEncomenda.Pendente;
     public string Observacoes { get; set; } = string.Empty;
@@ -162,7 +164,7 @@ public class Fatura
     public string NomeCliente { get; set; } = string.Empty;
     public string NIFCliente { get; set; } = string.Empty;
     public string MoradaCliente { get; set; } = string.Empty;
-    public DateTime DataEmissao { get; set; } = DateTime.UtcNow;
+    public DateTime DataEmissao { get; set; } = DateTime.Now;
     public decimal Total { get; set; }
     public EstadoFatura Estado { get; set; } = EstadoFatura.Emitida;
 
@@ -191,7 +193,7 @@ public class Consolidacao
     public int Id { get; set; }
     public int LojaId { get; set; }
     public DateOnly DataConsolidacao { get; set; }
-    public DateTime DataHoraExecucao { get; set; } = DateTime.UtcNow;
+    public DateTime DataHoraExecucao { get; set; } = DateTime.Now;
     public decimal TotalVendas { get; set; }
     public int NumeroTransacoes { get; set; }
     public decimal TotalDescontos { get; set; }
@@ -210,7 +212,7 @@ public class AjusteStock
     public string UtilizadorId { get; set; } = string.Empty;
     public decimal Variacao { get; set; } // positivo = entrada, negativo = saída
     public string Motivo { get; set; } = string.Empty;
-    public DateTime DataHora { get; set; } = DateTime.UtcNow;
+    public DateTime DataHora { get; set; } = DateTime.Now;
 
     public Loja Loja { get; set; } = null!;
     public Produto Produto { get; set; } = null!;
@@ -222,7 +224,7 @@ public class Notificacao
     public int Id { get; set; }
     public string? DestinatarioId { get; set; }
     public string Mensagem { get; set; } = string.Empty;
-    public DateTime DataHora { get; set; } = DateTime.UtcNow;
+    public DateTime DataHora { get; set; } = DateTime.Now;
     public bool Lida { get; set; } = false;
     public string Tipo { get; set; } = "Info"; // Info | Warning | Error
 }
@@ -239,7 +241,7 @@ public class Utilizador
     public bool Ativo { get; set; } = true;
     public string? Telefone { get; set; }
     public string? Notas { get; set; }
-    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+    public DateTime CriadoEm { get; set; } = DateTime.Now;
 
     public Loja? Loja { get; set; }
 }
