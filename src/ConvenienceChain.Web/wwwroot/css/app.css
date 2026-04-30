@@ -89,3 +89,12 @@ th { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: 
 @media (max-width: 768px) {
     .sidebar { display: none; }
 }
+
+/* Dropdown de notificações */
+.hover-bg {
+    transition: background-color .15s;
+    border-radius: 6px;
+}
+.hover-bg:hover {
+    background-color: #f3f4f6;
+}

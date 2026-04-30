@@ -18,27 +18,51 @@
                 </span>
             }
         </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:320px;max-width:400px">
-            <li><h6 class="dropdown-header">Notificações</h6></li>
+        <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width:340px;max-width:380px">
+            <li class="px-3 py-2 d-flex justify-content-between align-items-center border-bottom">
+                <strong class="small">Notificações</strong>
+                @if (_naoLidas is not null && _naoLidas.Any())
+                {
+                    <span class="badge bg-secondary">@_naoLidas.Count() não lida(s)</span>
+                }
+            </li>
+
             @if (_naoLidas is null)
             {
-                <li><span class="dropdown-item-text text-muted small">A carregar...</span></li>
+                <li class="px-3 py-3 text-muted small text-center">A carregar…</li>
             }
             else if (!_naoLidas.Any())
             {
-                <li><span class="dropdown-item-text text-muted small">Sem notificações não lidas.</span></li>
+                <li class="px-3 py-3 text-muted small text-center">
+                    <i class="bi bi-check2-circle fs-4 d-block mb-1 opacity-50"></i>
+                    Sem notificações novas
+                </li>
             }
             else
             {
                 @foreach (var n in _naoLidas.Take(10))
                 {
-                    <li>
-                        <button class="dropdown-item small py-2" @onclick="() => MarcarAsync(n.Id)">
-                            <div class="text-muted" style="font-size:.7rem">
-                                @n.DataHora.ToLocalTime().ToString("dd/MM HH:mm") — @n.Tipo
+                    <li class="border-bottom">
+                        <button type="button"
+                                class="btn btn-link w-100 text-start text-decoration-none text-dark p-0"
+                                style="white-space:normal"
+                                @onclick="() => MarcarAsync(n.Id)">
+                            <div class="px-3 py-2 hover-bg">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                                    <span class="badge @CorTipo(n.Tipo)" style="font-size:.65rem">@n.Tipo</span>
+                                    <span class="text-muted" style="font-size:.7rem">
+                                        @n.DataHora.ToLocalTime().ToString("dd/MM HH:mm")
+                                    </span>
+                                </div>
+                                <div class="small" style="line-height:1.35;word-break:break-word">@n.Mensagem</div>
                             </div>
-                            <div>@n.Mensagem</div>
                         </button>
+                    </li>
+                }
+                @if (_naoLidas.Count() > 10)
+                {
+                    <li class="px-3 py-2 text-muted text-center small border-top">
+                        +@(_naoLidas.Count() - 10) mais notificações
                     </li>
                 }
             }
@@ -62,4 +86,11 @@
         await NotifSvc.MarcarComoLidaAsync(id);
         await CarregarAsync();
     }
+
+    private static string CorTipo(string tipo) => tipo switch
+    {
+        "Error"   => "bg-danger",
+        "Warning" => "bg-warning text-dark",
+        _         => "bg-info text-dark"
+    };
 }
