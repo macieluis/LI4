@@ -292,6 +292,8 @@ public class OrderServiceTests
     public async Task Cancel_ComFuncionario_DeveLancarUnauthorizedAccessException()
     {
         // Arrange
+        var enc = new Encomenda { Id = 1, LojaId = 1, Estado = EstadoEncomenda.Pendente, Observacoes = "" };
+        _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
         var svc = CreateSvc();
 
         // Act
@@ -302,15 +304,55 @@ public class OrderServiceTests
     }
 
     [Fact]
-    public async Task Cancel_EncomendaRececionada_DeveLancarInvalidOperation()
+    public async Task Cancel_ComGestor_DeveLancarUnauthorizedAccessException()
     {
-        // Arrange
-        var enc = new Encomenda { Id = 1, Estado = EstadoEncomenda.Rececionada, Observacoes = "" };
+        // Arrange — Gestor já não pode cancelar; apenas consulta
+        var enc = new Encomenda { Id = 1, LojaId = 1, Estado = EstadoEncomenda.Pendente, Observacoes = "" };
         _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
         var svc = CreateSvc();
 
         // Act
-        var act = async () => await svc.CancelAsync(1, "motivo", "admin");
+        var act = async () => await svc.CancelAsync(1, "motivo qualquer", "admin");
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Gerente*");
+    }
+
+    [Fact]
+    public async Task Cancel_ComGerenteDeOutraLoja_DeveLancarUnauthorizedAccessException()
+    {
+        // Arrange — Gerente da loja 2 a tentar cancelar encomenda da loja 1
+        _mockUserRepo.Setup(r => r.GetByIdAsync("gerente_loja2"))
+            .ReturnsAsync(new Utilizador
+            {
+                Id = "gerente_loja2",
+                Papel = PapelUtilizador.GerenteLoja,
+                LojaId = 2,
+                Ativo = true
+            });
+        var enc = new Encomenda { Id = 1, LojaId = 1, Estado = EstadoEncomenda.Pendente, Observacoes = "" };
+        _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.CancelAsync(1, "motivo qualquer", "gerente_loja2");
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*sua própria loja*");
+    }
+
+    [Fact]
+    public async Task Cancel_EncomendaRececionada_DeveLancarInvalidOperation()
+    {
+        // Arrange
+        var enc = new Encomenda { Id = 1, LojaId = 1, Estado = EstadoEncomenda.Rececionada, Observacoes = "" };
+        _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.CancelAsync(1, "motivo", "gerente_loja1");
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()

@@ -491,12 +491,24 @@ public class OrderService : IOrderService
 
     public async Task CancelAsync(int encomendaId, string motivo, string userId)
     {
-        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         if (string.IsNullOrWhiteSpace(motivo))
             throw new ArgumentException("O motivo do cancelamento é obrigatório.", nameof(motivo));
 
         var enc = await _repo.GetByIdAsync(encomendaId)
             ?? throw new KeyNotFoundException($"Encomenda {encomendaId} não encontrada.");
+
+        var user = await _userRepo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("Utilizador não encontrado ou sessão inválida.");
+
+        if (user.Papel != PapelUtilizador.GerenteLoja)
+            throw new UnauthorizedAccessException(
+                "Apenas o Gerente da loja pode cancelar encomendas. " +
+                "O Gestor da Cadeia tem acesso de consulta apenas.");
+
+        if (user.LojaId != enc.LojaId)
+            throw new UnauthorizedAccessException(
+                "O Gerente só pode cancelar encomendas da sua própria loja.");
+
         if (enc.Estado == EstadoEncomenda.Rececionada)
             throw new InvalidOperationException("Não é possível cancelar uma encomenda já rececionada.");
         if (enc.Estado == EstadoEncomenda.Cancelada)

@@ -67,15 +67,12 @@
                             <td class="text-center">
                                 @if (e.Estado == "Pendente")
                                 {
-                                    @* Apenas o Gerente da loja onde a encomenda foi feita pode rececionar *@
+                                    @* Apenas o Gerente da loja onde a encomenda foi feita pode rececionar/cancelar *@
                                     @if (Session.IsGerenteLoja && Session.LojaId == e.LojaId)
                                     {
                                         <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
                                             <i class="bi bi-box-arrow-in-down"></i>
                                         </button>
-                                    }
-                                    @if (Session.IsGestorCadeia)
-                                    {
                                         <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirCancelar(e)" title="Cancelar encomenda">
                                             <i class="bi bi-x-circle"></i>
                                         </button>
