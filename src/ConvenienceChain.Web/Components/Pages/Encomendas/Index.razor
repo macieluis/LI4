@@ -67,12 +67,16 @@
                             <td class="text-center">
                                 @if (e.Estado == "Pendente")
                                 {
-                                    <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
-                                        <i class="bi bi-box-arrow-in-down"></i>
-                                    </button>
+                                    @* Apenas o Gerente da loja onde a encomenda foi feita pode rececionar *@
+                                    @if (Session.IsGerenteLoja && Session.LojaId == e.LojaId)
+                                    {
+                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
+                                            <i class="bi bi-box-arrow-in-down"></i>
+                                        </button>
+                                    }
                                     @if (Session.IsGestorCadeia)
                                     {
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirCancelar(e)" title="Cancelar">
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirCancelar(e)" title="Cancelar encomenda">
                                             <i class="bi bi-x-circle"></i>
                                         </button>
                                     }
@@ -373,7 +377,7 @@
         try
         {
             var linhas = rececaoLinhas.Select(l => new RecepcionarLinhaDto(l.ProdutoId, l.QuantidadeRecebida));
-            await OrderSvc.RecepcionarAsync(encomendaARececionar!.Id, linhas);
+            await OrderSvc.RecepcionarAsync(encomendaARececionar!.Id, linhas, Session.UserId!);
             modalRececao = false;
             var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
             todas = lojaId.HasValue

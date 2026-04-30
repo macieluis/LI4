@@ -261,6 +261,14 @@ public class OrderServiceTests
             .ReturnsAsync(new Utilizador { Id = "admin", Papel = PapelUtilizador.GestorCadeia, Ativo = true });
         _mockUserRepo.Setup(r => r.GetByIdAsync("func"))
             .ReturnsAsync(new Utilizador { Id = "func", Papel = PapelUtilizador.Funcionario, Ativo = true });
+        _mockUserRepo.Setup(r => r.GetByIdAsync("gerente_loja1"))
+            .ReturnsAsync(new Utilizador
+            {
+                Id = "gerente_loja1",
+                Papel = PapelUtilizador.GerenteLoja,
+                LojaId = 1,
+                Ativo = true
+            });
     }
 
     private OrderService CreateSvc() =>
@@ -307,6 +315,46 @@ public class OrderServiceTests
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*rececionada*");
+    }
+
+    [Fact]
+    public async Task Rececionar_ComGestor_DeveLancarUnauthorizedAccessException()
+    {
+        // Arrange
+        var enc = new Encomenda { Id = 1, LojaId = 1, Estado = EstadoEncomenda.Pendente, Linhas = new List<LinhaEncomenda>() };
+        _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.RecepcionarAsync(1, new List<RecepcionarLinhaDto>(), "admin");
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Gerente*");
+    }
+
+    [Fact]
+    public async Task Rececionar_ComGerenteDeOutraLoja_DeveLancarUnauthorizedAccessException()
+    {
+        // Arrange — Gerente da loja 2 a tentar receber encomenda da loja 1
+        _mockUserRepo.Setup(r => r.GetByIdAsync("gerente_loja2"))
+            .ReturnsAsync(new Utilizador
+            {
+                Id = "gerente_loja2",
+                Papel = PapelUtilizador.GerenteLoja,
+                LojaId = 2,
+                Ativo = true
+            });
+        var enc = new Encomenda { Id = 1, LojaId = 1, Estado = EstadoEncomenda.Pendente, Linhas = new List<LinhaEncomenda>() };
+        _mockEncRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(enc);
+        var svc = CreateSvc();
+
+        // Act
+        var act = async () => await svc.RecepcionarAsync(1, new List<RecepcionarLinhaDto>(), "gerente_loja2");
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*sua própria loja*");
     }
 }
 

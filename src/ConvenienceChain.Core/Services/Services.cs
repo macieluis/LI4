@@ -446,9 +446,28 @@ public class OrderService : IOrderService
         return MapToDto(result!);
     }
 
-    public async Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas)
+    public async Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas, string userId)
     {
-        var enc = await _repo.GetByIdAsync(encomendaId) ?? throw new KeyNotFoundException();
+        var enc = await _repo.GetByIdAsync(encomendaId)
+            ?? throw new KeyNotFoundException($"Encomenda {encomendaId} não encontrada.");
+
+        var user = await _userRepo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("Utilizador não encontrado ou sessão inválida.");
+
+        if (user.Papel != PapelUtilizador.GerenteLoja)
+            throw new UnauthorizedAccessException(
+                "Apenas o Gerente da loja pode rececionar encomendas. " +
+                "O Gestor da Cadeia tem acesso de consulta apenas.");
+
+        if (user.LojaId != enc.LojaId)
+            throw new UnauthorizedAccessException(
+                "O Gerente só pode rececionar encomendas da sua própria loja.");
+
+        if (enc.Estado == EstadoEncomenda.Cancelada)
+            throw new InvalidOperationException("Não é possível rececionar uma encomenda cancelada.");
+        if (enc.Estado == EstadoEncomenda.Rececionada)
+            throw new InvalidOperationException("Esta encomenda já foi rececionada.");
+
         enc.Estado = EstadoEncomenda.Rececionada;
         enc.DataRececao = DateTime.Now;
 
