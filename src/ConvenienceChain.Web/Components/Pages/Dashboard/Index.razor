@@ -3,7 +3,6 @@
 @using ConvenienceChain.Core.Interfaces
 @using ConvenienceChain.Web.Services
 @inject IReportService ReportSvc
-@inject IConsolidacaoService ConsSvc
 @inject SessionService Session
 
 <PageTitle>Dashboard – SGCLC</PageTitle>
@@ -17,10 +16,9 @@
         <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>@DateTime.Now.ToString("dd/MM/yyyy")</span>
         @if (Session.IsGestorCadeia)
         {
-            <button class="btn btn-outline-primary btn-sm" @onclick="ConsolidarAgora" disabled="@a_consolidar">
-                @if (a_consolidar) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                <i class="bi bi-arrow-repeat me-1"></i>Consolidar Agora
-            </button>
+            <a class="btn btn-outline-primary btn-sm" href="/consolidacao">
+                <i class="bi bi-arrow-repeat me-1"></i>Ir para Consolidação
+            </a>
         }
     </div>
 </div>
@@ -183,7 +181,6 @@ else if (!Session.IsGestorCadeia && dashboardLoja is not null)
     private IEnumerable<DashboardLojaDto>? dashboards;
     private DashboardLojaDto? dashboardLoja;
     private bool a_carregar = true;
-    private bool a_consolidar;
 
     protected override async Task OnInitializedAsync()
     {
@@ -192,13 +189,5 @@ else if (!Session.IsGestorCadeia && dashboardLoja is not null)
         else if (Session.LojaId.HasValue)
             dashboardLoja = await ReportSvc.GetDashboardLojaAsync(Session.LojaId.Value);
         a_carregar = false;
-    }
-
-    private async Task ConsolidarAgora()
-    {
-        a_consolidar = true;
-        await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(DateTime.Today));
-        dashboards = await ReportSvc.GetDashboardCentralAsync();
-        a_consolidar = false;
     }
 }
