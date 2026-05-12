@@ -1,0 +1,137 @@
+@page "/perfil"
+@using ConvenienceChain.Core.Entities
+@using ConvenienceChain.Core.Interfaces
+@using ConvenienceChain.Core.Enums
+@using ConvenienceChain.Web.Services
+@inject IUtilizadorService UtilSvc
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<PageTitle>O meu perfil – SGCLC</PageTitle>
+
+@if (!Session.IsAuthenticated)
+{
+    Nav.NavigateTo("/login");
+    return;
+}
+
+<div class="page-header mb-4">
+    <h1><i class="bi bi-person-circle me-2 text-primary"></i>O meu perfil</h1>
+    <p class="text-muted mb-0">Dados da tua conta no SGCLC</p>
+</div>
+
+@if (a_carregar)
+{
+    <div class="d-flex justify-content-center my-5"><div class="spinner-border text-primary"></div></div>
+}
+else if (utilizador is null)
+{
+    <div class="alert alert-warning">Não foi possível carregar os dados do utilizador.</div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-5">
+                    <div class="avatar-large mx-auto mb-3">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <h4 class="mb-1">@utilizador.Nome</h4>
+                    <p class="text-muted small mb-3">@utilizador.Email</p>
+                    <span class="badge @BadgePapel(utilizador.Papel) fs-6 px-3 py-2">
+                        @LabelPapel(utilizador.Papel)
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2 text-primary"></i>Informação da conta</h5>
+                </div>
+                <div class="card-body p-4">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 text-muted">Nome</dt>
+                        <dd class="col-sm-8">@utilizador.Nome</dd>
+
+                        <dt class="col-sm-4 text-muted">Email</dt>
+                        <dd class="col-sm-8">@utilizador.Email</dd>
+
+                        <dt class="col-sm-4 text-muted">Telefone</dt>
+                        <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(utilizador.Telefone) ? "—" : utilizador.Telefone)</dd>
+
+                        <dt class="col-sm-4 text-muted">Papel</dt>
+                        <dd class="col-sm-8">@LabelPapel(utilizador.Papel)</dd>
+
+                        <dt class="col-sm-4 text-muted">Loja associada</dt>
+                        <dd class="col-sm-8">@(utilizador.Loja?.Nome ?? "— (acesso global)")</dd>
+
+                        <dt class="col-sm-4 text-muted">Conta criada em</dt>
+                        <dd class="col-sm-8">@utilizador.CriadoEm.ToString("dd/MM/yyyy 'às' HH:mm")</dd>
+
+                        <dt class="col-sm-4 text-muted">Estado</dt>
+                        <dd class="col-sm-8">
+                            @if (utilizador.Ativo)
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Ativa</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Inativa</span>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3 mb-0 small">
+                <i class="bi bi-info-circle me-1"></i>
+                Para alterar os teus dados ou redefinir a password, contacta o Gestor da Cadeia.
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .avatar-large {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+    }
+</style>
+
+@code {
+    private Utilizador? utilizador;
+    private bool a_carregar = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated || Session.UserId is null) return;
+        utilizador = await UtilSvc.GetByIdAsync(Session.UserId);
+        a_carregar = false;
+    }
+
+    private static string LabelPapel(PapelUtilizador p) => p switch
+    {
+        PapelUtilizador.GestorCadeia => "Gestor da Cadeia",
+        PapelUtilizador.GerenteLoja => "Gerente de Loja",
+        PapelUtilizador.Funcionario => "Funcionário",
+        _ => p.ToString()
+    };
+
+    private static string BadgePapel(PapelUtilizador p) => p switch
+    {
+        PapelUtilizador.GestorCadeia => "bg-primary",
+        PapelUtilizador.GerenteLoja => "bg-info text-dark",
+        PapelUtilizador.Funcionario => "bg-secondary",
+        _ => "bg-light text-dark"
+    };
+}
