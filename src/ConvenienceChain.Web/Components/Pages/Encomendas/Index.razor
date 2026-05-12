@@ -183,14 +183,16 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-muted small mb-3">
-                        Confirme as quantidades efectivamente recebidas. O stock será actualizado automaticamente.
+                        Confirme as quantidades efetivamente recebidas. O stock será atualizado automaticamente.
+                        Se o novo lote tiver uma validade diferente, indica-a — a validade do produto será atualizada.
                     </p>
                     <table class="table table-sm table-bordered">
                         <thead class="table-light">
                             <tr>
                                 <th>Produto</th>
-                                <th class="text-center">Qtd Pedida</th>
-                                <th class="text-center">Qtd Recebida</th>
+                                <th class="text-center" style="width:90px">Qtd Pedida</th>
+                                <th class="text-center" style="width:110px">Qtd Recebida</th>
+                                <th class="text-center" style="width:160px">Nova validade <span class="text-muted fw-normal">(opcional)</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -201,9 +203,12 @@
                                     <td class="text-center text-muted small">@linha.QuantidadePedida</td>
                                     <td class="text-center">
                                         <input type="number" class="form-control form-control-sm text-center"
-                                               style="width:90px;margin:auto"
                                                min="0" step="0.001"
                                                @bind="linha.QuantidadeRecebida" />
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="date" class="form-control form-control-sm"
+                                               @bind="linha.NovaValidade" />
                                     </td>
                                 </tr>
                             }
@@ -446,7 +451,10 @@
         a_rececionando = true;
         try
         {
-            var linhas = rececaoLinhas.Select(l => new RecepcionarLinhaDto(l.ProdutoId, l.QuantidadeRecebida));
+            var linhas = rececaoLinhas.Select(l => new RecepcionarLinhaDto(
+                l.ProdutoId,
+                l.QuantidadeRecebida,
+                l.NovaValidade.HasValue ? DateOnly.FromDateTime(l.NovaValidade.Value) : null));
             await OrderSvc.RecepcionarAsync(encomendaARececionar!.Id, linhas, Session.UserId!);
             modalRececao = false;
             var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
@@ -489,5 +497,6 @@
         public string NomeProduto { get; set; } = "";
         public decimal QuantidadePedida { get; set; }
         public decimal QuantidadeRecebida { get; set; }
+        public DateTime? NovaValidade { get; set; }
     }
 }

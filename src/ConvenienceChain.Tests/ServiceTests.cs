@@ -254,6 +254,7 @@ public class OrderServiceTests
     private readonly Mock<IStockRepository> _mockStockRepo = new();
     private readonly Mock<INotificationService> _mockNotif = new();
     private readonly Mock<IUtilizadorRepository> _mockUserRepo = new();
+    private readonly Mock<IProdutoRepository> _mockProdutoRepo = new();
 
     public OrderServiceTests()
     {
@@ -272,7 +273,7 @@ public class OrderServiceTests
     }
 
     private OrderService CreateSvc() =>
-        new(_mockEncRepo.Object, _mockStockRepo.Object, _mockNotif.Object, _mockUserRepo.Object);
+        new(_mockEncRepo.Object, _mockStockRepo.Object, _mockNotif.Object, _mockUserRepo.Object, _mockProdutoRepo.Object);
 
     [Fact]
     public async Task Cancel_SemMotivo_DeveLancarArgumentException()

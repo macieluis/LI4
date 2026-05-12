@@ -407,11 +407,14 @@ public class OrderService : IOrderService
     private readonly IStockRepository _stockRepo;
     private readonly INotificationService _notifSvc;
     private readonly IUtilizadorRepository _userRepo;
+    private readonly IProdutoRepository _produtoRepo;
 
     public OrderService(IEncomendaRepository repo, IStockRepository stockRepo,
-        INotificationService notifSvc, IUtilizadorRepository userRepo)
+        INotificationService notifSvc, IUtilizadorRepository userRepo,
+        IProdutoRepository produtoRepo)
     {
-        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc; _userRepo = userRepo;
+        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc;
+        _userRepo = userRepo; _produtoRepo = produtoRepo;
     }
 
     public async Task<IEnumerable<EncomendaDto>> GetAllAsync() =>
@@ -485,6 +488,17 @@ public class OrderService : IOrderService
             {
                 stock.Quantidade += linha.QuantidadeRecebida;
                 await _stockRepo.UpdateAsync(stock);
+            }
+
+            // Atualizar validade do produto se o gerente indicou uma nova
+            if (linha.NovaValidade.HasValue)
+            {
+                var produto = await _produtoRepo.GetByIdAsync(linha.ProdutoId);
+                if (produto is not null)
+                {
+                    produto.DataValidade = linha.NovaValidade;
+                    await _produtoRepo.UpdateAsync(produto);
+                }
             }
         }
 
