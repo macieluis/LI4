@@ -3,7 +3,7 @@ using ConvenienceChain.Core.Enums;
 namespace ConvenienceChain.Core.DTOs;
 
 // --- Auth ---
-public record LoginResultDto(string UserId, string Nome, string Email, PapelUtilizador Papel, int? LojaId);
+public record LoginResultDto(string UserId, string Nome, string Email, PapelUtilizador Papel, int? LojaId, string? NomeLoja);
 
 // --- Produto ---
 public record CreateProdutoDto(string Codigo, string Nome, string Descricao, decimal PrecoCusto,

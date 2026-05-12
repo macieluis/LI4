@@ -41,7 +41,7 @@ public class AuthService : IAuthService
         var user = await _repo.GetByEmailAsync(email);
         if (user is null || !user.Ativo) return null;
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash)) return null;
-        return new LoginResultDto(user.Id, user.Nome, user.Email, user.Papel, user.LojaId);
+        return new LoginResultDto(user.Id, user.Nome, user.Email, user.Papel, user.LojaId, user.Loja?.Nome);
     }
 
     public async Task<bool> ChangePasswordAsync(string userId, string novaSenha)

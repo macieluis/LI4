@@ -7,10 +7,9 @@
 @* Notificações disponíveis apenas para Gerente de Loja e Gestor da Cadeia *@
 @if (Session.IsAuthenticated && (Session.IsGerenteLoja || Session.IsGestorCadeia))
 {
-    <div class="dropup">
+    <div class="notif-wrapper">
         <button class="btn btn-link text-white position-relative p-0"
-                type="button" data-bs-toggle="dropdown" aria-expanded="false"
-                @onclick="CarregarAsync" title="Notificações">
+                type="button" @onclick="Toggle" title="Notificações">
             <i class="bi bi-bell fs-5"></i>
             @if (_naoLidas is not null && _naoLidas.Any())
             {
@@ -20,53 +19,61 @@
                 </span>
             }
         </button>
-        <ul class="dropdown-menu shadow notif-menu">
-            <li class="px-3 py-2 border-bottom">
-                <strong class="small">Notificações</strong>
-            </li>
 
-            @if (_naoLidas is null)
-            {
-                <li class="px-3 py-3 text-muted small text-center">A carregar…</li>
-            }
-            else if (!_naoLidas.Any())
-            {
-                <li class="px-3 py-3 text-muted small text-center">
-                    <i class="bi bi-check2-circle d-block mb-1 opacity-50"></i>
-                    Sem notificações novas
-                </li>
-            }
-            else
-            {
-                @foreach (var n in _naoLidas.Take(6))
+        @if (_aberto)
+        {
+            <div class="notif-backdrop" @onclick="Fechar"></div>
+            <div class="notif-popup shadow">
+                <div class="notif-header">
+                    <strong class="small">Notificações</strong>
+                </div>
+
+                @if (_naoLidas is null)
                 {
-                    <li>
-                        <button type="button"
-                                class="dropdown-item notif-item d-flex gap-2 py-2"
-                                @onclick="() => MarcarAsync(n.Id)">
+                    <div class="notif-empty">A carregar…</div>
+                }
+                else if (!_naoLidas.Any())
+                {
+                    <div class="notif-empty">
+                        <i class="bi bi-check2-circle d-block mb-1 opacity-50"></i>
+                        Sem notificações novas
+                    </div>
+                }
+                else
+                {
+                    @foreach (var n in _naoLidas.Take(6))
+                    {
+                        <button type="button" class="notif-item" @onclick="() => MarcarAsync(n.Id)">
                             <span class="notif-dot @CorTipo(n.Tipo)"></span>
                             <div class="flex-grow-1">
                                 <div class="small notif-msg">@n.Mensagem</div>
                                 <div class="text-muted notif-time">@n.DataHora.ToString("dd/MM HH:mm")</div>
                             </div>
                         </button>
-                    </li>
+                    }
+                    @if (_naoLidas.Count() > 6)
+                    {
+                        <div class="notif-more">+@(_naoLidas.Count() - 6) mais</div>
+                    }
                 }
-                @if (_naoLidas.Count() > 6)
-                {
-                    <li class="px-3 py-1 text-muted text-center border-top notif-more">
-                        +@(_naoLidas.Count() - 6) mais
-                    </li>
-                }
-            }
-        </ul>
+            </div>
+        }
     </div>
 }
 
 @code {
     private IEnumerable<Notificacao>? _naoLidas;
+    private bool _aberto;
 
     protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task Toggle()
+    {
+        _aberto = !_aberto;
+        if (_aberto) await CarregarAsync();
+    }
+
+    private void Fechar() => _aberto = false;
 
     private async Task CarregarAsync()
     {

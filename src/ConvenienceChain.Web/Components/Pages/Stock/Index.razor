@@ -17,7 +17,7 @@
             @if (Session.IsGestorCadeia)
             { <span>Selecione uma loja para visualizar o stock</span> }
             else
-            { <span>Loja: Id @Session.LojaId</span> }
+            { <span>Loja: @Session.NomeLoja</span> }
         </p>
     </div>
     <button class="btn btn-outline-secondary btn-sm" @onclick="ExportarCsv">
