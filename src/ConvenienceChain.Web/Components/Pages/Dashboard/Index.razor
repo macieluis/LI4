@@ -14,6 +14,9 @@
     </div>
     <div class="d-flex gap-2 align-items-center">
         <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>@DateTime.Now.ToString("dd/MM/yyyy")</span>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="Atualizar" disabled="@a_carregar">
+            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+        </button>
         @if (Session.IsGestorCadeia)
         {
             <a class="btn btn-outline-primary btn-sm" href="/consolidacao">
@@ -182,8 +185,13 @@ else if (!Session.IsGestorCadeia && dashboardLoja is not null)
     private DashboardLojaDto? dashboardLoja;
     private bool a_carregar = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task Atualizar() => await CarregarAsync();
+
+    private async Task CarregarAsync()
     {
+        a_carregar = true;
         if (Session.IsGestorCadeia)
             dashboards = await ReportSvc.GetDashboardCentralAsync();
         else if (Session.LojaId.HasValue)
