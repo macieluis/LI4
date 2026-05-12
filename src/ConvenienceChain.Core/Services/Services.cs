@@ -414,6 +414,9 @@ public class OrderService : IOrderService
         _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc; _userRepo = userRepo;
     }
 
+    public async Task<IEnumerable<EncomendaDto>> GetAllAsync() =>
+        (await _repo.GetAllAsync()).Select(MapToDto);
+
     public async Task<IEnumerable<EncomendaDto>> GetByLojaAsync(int lojaId) =>
         (await _repo.GetByLojaAsync(lojaId)).Select(MapToDto);
 

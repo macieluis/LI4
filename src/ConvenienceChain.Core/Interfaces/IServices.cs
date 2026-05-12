@@ -46,6 +46,7 @@ public interface ISalesService
 
 public interface IOrderService
 {
+    Task<IEnumerable<EncomendaDto>> GetAllAsync();
     Task<IEnumerable<EncomendaDto>> GetByLojaAsync(int lojaId);
     Task<IEnumerable<EncomendaDto>> GetPendentesAsync();
     Task<EncomendaDto?> GetByIdAsync(int id);

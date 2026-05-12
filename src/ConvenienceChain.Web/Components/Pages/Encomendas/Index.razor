@@ -347,7 +347,7 @@
         var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
         todas = lojaId.HasValue
             ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
-            : (await OrderSvc.GetPendentesAsync()).ToList();
+            : (await OrderSvc.GetAllAsync()).ToList();
         encomendas = todas;
         fornecedores = (await FornecedorSvc.GetAllAsync()).ToList();
         a_carregar = false;

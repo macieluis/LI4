@@ -46,6 +46,7 @@ public interface IVendaRepository
 
 public interface IEncomendaRepository
 {
+    Task<IEnumerable<Encomenda>> GetAllAsync();
     Task<IEnumerable<Encomenda>> GetByLojaAsync(int lojaId);
     Task<IEnumerable<Encomenda>> GetPendentesAsync();
     Task<Encomenda?> GetByIdAsync(int id);
