@@ -86,13 +86,14 @@ else if (Session.IsGestorCadeia && dashboards is not null)
                     @foreach (var d in dashboards.OrderByDescending(x => x.TotalVendasHoje))
                     {
                         var pct = maxVenda > 0 ? (d.TotalVendasHoje / maxVenda * 100) : 0;
+                        var pctCss = pct.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
                         <div class="mb-2">
                             <div class="d-flex justify-content-between small mb-1">
                                 <span>@d.NomeLoja</span>
                                 <strong>€@d.TotalVendasHoje.ToString("N2")</strong>
                             </div>
                             <div class="progress" style="height:10px;border-radius:99px">
-                                <div class="progress-bar bg-primary" style="width:@pct%"></div>
+                                <div class="progress-bar bg-primary" style="width:@pctCss%"></div>
                             </div>
                         </div>
                     }
