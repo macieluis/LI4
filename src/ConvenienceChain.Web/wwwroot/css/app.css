@@ -21,7 +21,7 @@
     position: sticky;
     top: 0;
     height: 100vh;
-    overflow-y: auto;
+    overflow: visible;
 }
 
 .sidebar .brand { color: white; }
@@ -102,6 +102,7 @@ th { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: 
 /* Notificações — popup manual à direita do sino */
 .notif-wrapper {
     position: relative;
+    z-index: 1060;
 }
 .notif-backdrop {
     position: fixed;
