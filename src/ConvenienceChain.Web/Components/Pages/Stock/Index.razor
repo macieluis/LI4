@@ -6,6 +6,7 @@
 @inject IStockService StockSvc
 @inject ILojaRepository LojaRepo
 @inject SessionService Session
+@inject IJSRuntime JS
 
 <PageTitle>Gestão de Stock – SGCLC</PageTitle>
 
@@ -382,5 +383,38 @@
         finally { a_ajuste = false; }
     }
 
-    private void ExportarCsv() { /* TODO: gerar CSV */ }
+    private string Csv(string? v) =>
+        v is null ? "" : "\"" + v.Replace("\"", "\"\"") + "\"";
+
+    private async Task ExportarCsv()
+    {
+        if (!stockFiltrado.Any()) return;
+
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Codigo;Produto;Categoria;Quantidade;StockMinimo;PrecoVenda;Validade;DiasFimValidade;Estado");
+
+        foreach (var s in stockFiltrado)
+        {
+            var preco = (s.PrecoVendaLocal ?? s.PrecoBaseVenda).ToString("0.00", ci);
+            var validade = s.DataValidade?.ToString("yyyy-MM-dd") ?? "";
+            var dias = s.DiasFimValidade?.ToString(ci) ?? "";
+            var estado = s.EmAlerta ? "Alerta" : "OK";
+            sb.AppendLine(string.Join(";",
+                Csv(s.CodigoProduto), Csv(s.NomeProduto), Csv(s.Categoria),
+                s.Quantidade.ToString("0.###", ci),
+                s.StockMinimo.ToString("0.###", ci),
+                preco, validade, dias, estado));
+        }
+
+        // BOM para Excel ler acentos UTF-8
+        var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+        var body = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var bytes = new byte[bom.Length + body.Length];
+        Buffer.BlockCopy(bom, 0, bytes, 0, bom.Length);
+        Buffer.BlockCopy(body, 0, bytes, bom.Length, body.Length);
+
+        var nomeFicheiro = $"stock_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+        await JS.InvokeVoidAsync("downloadFile", nomeFicheiro, "text/csv", Convert.ToBase64String(bytes));
+    }
 }
