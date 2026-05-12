@@ -24,24 +24,42 @@
     </button>
 </div>
 
-<!-- Alertas globais -->
-@if (alertas.Any())
-{
-    <div class="alert stock-alert mb-3">
-        <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>@alertas.Count() produto(s) abaixo do stock mínimo!</strong>
-    </div>
-}
 @{
     var expirados  = todos.Where(s => s.DiasFimValidade.HasValue && s.DiasFimValidade.Value < 0).ToList();
     var aExpirar   = todos.Where(s => s.DiasFimValidade.HasValue && s.DiasFimValidade.Value >= 0 && s.DiasFimValidade.Value <= 30).ToList();
+    var nAlerta = todos.Count(s => s.EmAlerta);
 }
-@if (expirados.Any())
+@if (nAlerta > 0 || expirados.Any() || aExpirar.Any())
 {
-    <div class="alert alert-danger mb-2"><i class="bi bi-x-octagon-fill me-2"></i><strong>@expirados.Count produto(s) EXPIRADO(S)!</strong> — @string.Join(", ", expirados.Select(s => s.NomeProduto))</div>
-}
-@if (aExpirar.Any())
-{
-    <div class="alert alert-warning mb-3"><i class="bi bi-clock-history me-2"></i><strong>@aExpirar.Count produto(s) a expirar em ≤30 dias</strong> — @string.Join(", ", aExpirar.Select(s => $"{s.NomeProduto} ({s.DiasFimValidade}d"))</div>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-bell-fill text-warning"></i>
+                <strong class="small">Avisos</strong>
+                <span class="text-muted small">— clica num aviso para filtrar a tabela</span>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                @if (nAlerta > 0)
+                {
+                    <button class="btn btn-sm btn-outline-danger" @onclick='() => AplicarFiltro("alerta")'>
+                        <i class="bi bi-exclamation-triangle me-1"></i>@nAlerta abaixo do mínimo
+                    </button>
+                }
+                @if (expirados.Any())
+                {
+                    <button class="btn btn-sm btn-outline-danger" @onclick='() => AplicarFiltro("expirado")'>
+                        <i class="bi bi-x-octagon me-1"></i>@expirados.Count expirado(s)
+                    </button>
+                }
+                @if (aExpirar.Any())
+                {
+                    <button class="btn btn-sm btn-outline-warning" @onclick='() => AplicarFiltro("aExpirar")'>
+                        <i class="bi bi-clock-history me-1"></i>@aExpirar.Count a expirar (≤30d)
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
 }
 
 <!-- Filtros -->
@@ -159,9 +177,17 @@
                                     }
                                 </td>
                                 <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => AbrirAjuste(s)" title="Ajuste Manual">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-secondary" @onclick="() => AbrirAjuste(s)" title="Ajuste manual">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        @if (s.DiasFimValidade.HasValue && s.DiasFimValidade.Value < 0 && s.Quantidade > 0)
+                                        {
+                                            <button class="btn btn-outline-danger" @onclick="() => AbrirAjusteExpirado(s)" title="Escrever stock expirado">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        }
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -175,32 +201,57 @@
 <!-- Modal: Ajuste de Stock -->
 @if (produtoAjuste is not null)
 {
+    var novoTotal = produtoAjuste.Quantidade + ajusteVariacao;
+    var totalNegativo = novoTotal < 0;
     <div class="modal fade show d-block" style="background:rgba(0,0,0,.5)">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-pencil-square me-2 text-primary"></i>Ajuste de Stock</h5>
-                    <button class="btn-close" @onclick="() => produtoAjuste = null"></button>
+                    <button class="btn-close" @onclick="FecharAjuste"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="fw-semibold">@produtoAjuste.NomeProduto</p>
+                    <p class="fw-semibold mb-1">@produtoAjuste.NomeProduto</p>
                     <p class="text-muted small">Quantidade atual: <strong>@produtoAjuste.Quantidade.ToString("0.###")</strong></p>
-                    <div class="mb-3">
-                        <label class="form-label fw-medium">Variação <span class="text-muted">(+ entrada / - saída)</span></label>
-                        <input type="number" class="form-control" step="0.001" @bind="ajusteVariacao" />
-                    </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-medium">Motivo <span class="text-danger">*</span></label>
-                        <input class="form-control" placeholder="Ex: Quebra, Inventário, Devolução..." @bind="ajusteMotivo" />
+                        <select class="form-select" @bind="ajusteMotivoPreset">
+                            <option value="">— Selecionar motivo —</option>
+                            <option value="Quebra">Quebra</option>
+                            <option value="Inventário">Inventário (correção)</option>
+                            <option value="Devolução">Devolução</option>
+                            <option value="Expirado">Expirado / Write-off</option>
+                            <option value="Outro">Outro…</option>
+                        </select>
+                        @if (ajusteMotivoPreset == "Outro")
+                        {
+                            <input class="form-control mt-2" placeholder="Especifica o motivo" @bind="ajusteMotivoOutro" />
+                        }
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Variação <span class="text-muted small">(+ entrada / − saída)</span></label>
+                        <input type="number" class="form-control" step="0.001" @bind="ajusteVariacao" @bind:event="oninput" />
+                    </div>
+
+                    <div class="alert @(totalNegativo ? "alert-danger" : "alert-light") py-2 small mb-0 d-flex justify-content-between">
+                        <span><i class="bi bi-arrow-right me-1"></i>Stock após ajuste:</span>
+                        <strong>@novoTotal.ToString("0.###")</strong>
+                    </div>
+                    @if (totalNegativo)
+                    {
+                        <div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>O ajuste deixaria o stock negativo.</div>
+                    }
+
                     @if (!string.IsNullOrEmpty(erroAjuste))
                     {
-                        <div class="alert alert-danger py-2 small">@erroAjuste</div>
+                        <div class="alert alert-danger py-2 small mt-2 mb-0">@erroAjuste</div>
                     }
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary btn-sm" @onclick="() => produtoAjuste = null">Cancelar</button>
-                    <button class="btn btn-primary btn-sm" @onclick="ConfirmarAjuste" disabled="@a_ajuste">
+                    <button class="btn btn-secondary btn-sm" @onclick="FecharAjuste">Cancelar</button>
+                    <button class="btn btn-primary btn-sm" @onclick="ConfirmarAjuste" disabled="@(a_ajuste || totalNegativo)">
                         @if (a_ajuste) { <span class="spinner-border spinner-border-sm me-1"></span> }
                         Confirmar Ajuste
                     </button>
@@ -221,9 +272,13 @@
 
     private StockDto? produtoAjuste;
     private decimal ajusteVariacao;
-    private string ajusteMotivo = "";
+    private string ajusteMotivoPreset = "";
+    private string ajusteMotivoOutro = "";
     private bool a_ajuste;
     private string? erroAjuste;
+
+    private string MotivoFinal =>
+        ajusteMotivoPreset == "Outro" ? ajusteMotivoOutro.Trim() : ajusteMotivoPreset;
 
     protected override async Task OnInitializedAsync()
     {
@@ -282,16 +337,44 @@
         ).ToList();
     }
 
-    private void AbrirAjuste(StockDto s) { produtoAjuste = s; ajusteVariacao = 0; ajusteMotivo = ""; erroAjuste = null; }
+    private void AbrirAjuste(StockDto s)
+    {
+        produtoAjuste = s;
+        ajusteVariacao = 0;
+        ajusteMotivoPreset = "";
+        ajusteMotivoOutro = "";
+        erroAjuste = null;
+    }
+
+    private void AbrirAjusteExpirado(StockDto s)
+    {
+        produtoAjuste = s;
+        ajusteVariacao = -s.Quantidade;
+        ajusteMotivoPreset = "Expirado";
+        ajusteMotivoOutro = "";
+        erroAjuste = null;
+    }
+
+    private void FecharAjuste() => produtoAjuste = null;
+
+    private void AplicarFiltro(string estado)
+    {
+        filtroAlerta = estado;
+        Filtrar();
+    }
 
     private async Task ConfirmarAjuste()
     {
-        if (string.IsNullOrWhiteSpace(ajusteMotivo)) { erroAjuste = "O motivo é obrigatório."; return; }
+        var motivo = MotivoFinal;
+        if (string.IsNullOrWhiteSpace(motivo)) { erroAjuste = "O motivo é obrigatório."; return; }
+        if (produtoAjuste is null) return;
+        if (produtoAjuste.Quantidade + ajusteVariacao < 0) { erroAjuste = "Stock final não pode ser negativo."; return; }
+
         a_ajuste = true; erroAjuste = null;
         var lojaId = Session.IsGestorCadeia ? lojaIdSelecionada : (Session.LojaId ?? 0);
         try
         {
-            await StockSvc.AjustarStockAsync(lojaId, produtoAjuste!.ProdutoId, ajusteVariacao, ajusteMotivo, Session.UserId!);
+            await StockSvc.AjustarStockAsync(lojaId, produtoAjuste.ProdutoId, ajusteVariacao, motivo, Session.UserId!);
             produtoAjuste = null;
             await CarregarStock();
         }
