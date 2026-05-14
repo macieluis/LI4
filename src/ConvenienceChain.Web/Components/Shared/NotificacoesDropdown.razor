@@ -4,52 +4,76 @@
 @inject INotificationService NotifSvc
 @inject SessionService Session
 
-@if (Session.IsAuthenticated)
+@* Notificações disponíveis apenas para Gerente de Loja e Gestor da Cadeia *@
+@if (Session.IsAuthenticated && (Session.IsGerenteLoja || Session.IsGestorCadeia))
 {
-    <div class="dropdown">
-        <button class="btn btn-link text-white position-relative p-0 me-2"
-                type="button" data-bs-toggle="dropdown" aria-expanded="false"
-                @onclick="CarregarAsync">
+    <div class="notif-wrapper">
+        <button class="btn btn-link text-white position-relative p-0"
+                type="button" @onclick="Toggle" title="Notificações">
             <i class="bi bi-bell fs-5"></i>
             @if (_naoLidas is not null && _naoLidas.Any())
             {
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                      style="font-size:.6rem">
                     @_naoLidas.Count()
                 </span>
             }
         </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:320px;max-width:400px">
-            <li><h6 class="dropdown-header">Notificações</h6></li>
-            @if (_naoLidas is null)
-            {
-                <li><span class="dropdown-item-text text-muted small">A carregar...</span></li>
-            }
-            else if (!_naoLidas.Any())
-            {
-                <li><span class="dropdown-item-text text-muted small">Sem notificações não lidas.</span></li>
-            }
-            else
-            {
-                @foreach (var n in _naoLidas.Take(10))
+
+        @if (_aberto)
+        {
+            <div class="notif-backdrop" @onclick="Fechar"></div>
+            <div class="notif-popup shadow">
+                <div class="notif-header">
+                    <strong class="small">Notificações</strong>
+                </div>
+
+                @if (_naoLidas is null)
                 {
-                    <li>
-                        <button class="dropdown-item small py-2" @onclick="() => MarcarAsync(n.Id)">
-                            <div class="text-muted" style="font-size:.7rem">
-                                @n.DataHora.ToLocalTime().ToString("dd/MM HH:mm") — @n.Tipo
-                            </div>
-                            <div>@n.Mensagem</div>
-                        </button>
-                    </li>
+                    <div class="notif-empty">A carregar…</div>
                 }
-            }
-        </ul>
+                else if (!_naoLidas.Any())
+                {
+                    <div class="notif-empty">
+                        <i class="bi bi-check2-circle d-block mb-1 opacity-50"></i>
+                        Sem notificações novas
+                    </div>
+                }
+                else
+                {
+                    @foreach (var n in _naoLidas.Take(6))
+                    {
+                        <button type="button" class="notif-item" @onclick="() => MarcarAsync(n.Id)">
+                            <span class="notif-dot @CorTipo(n.Tipo)"></span>
+                            <div class="flex-grow-1">
+                                <div class="small notif-msg">@n.Mensagem</div>
+                                <div class="text-muted notif-time">@n.DataHora.ToString("dd/MM HH:mm")</div>
+                            </div>
+                        </button>
+                    }
+                    @if (_naoLidas.Count() > 6)
+                    {
+                        <div class="notif-more">+@(_naoLidas.Count() - 6) mais</div>
+                    }
+                }
+            </div>
+        }
     </div>
 }
 
 @code {
     private IEnumerable<Notificacao>? _naoLidas;
+    private bool _aberto;
 
     protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task Toggle()
+    {
+        _aberto = !_aberto;
+        if (_aberto) await CarregarAsync();
+    }
+
+    private void Fechar() => _aberto = false;
 
     private async Task CarregarAsync()
     {
@@ -62,4 +86,11 @@
         await NotifSvc.MarcarComoLidaAsync(id);
         await CarregarAsync();
     }
+
+    private static string CorTipo(string tipo) => tipo switch
+    {
+        "Error"   => "bg-danger",
+        "Warning" => "bg-warning",
+        _         => "bg-info"
+    };
 }

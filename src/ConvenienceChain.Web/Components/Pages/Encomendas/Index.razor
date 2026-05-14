@@ -57,7 +57,11 @@
                     @foreach (var e in encomendas)
                     {
                         <tr>
-                            <td class="fw-medium small">#@e.Id</td>
+                            <td class="fw-medium small">
+                                <button class="btn btn-link p-0 fw-medium small" @onclick="() => AbrirDetalhes(e)" title="Ver detalhes da encomenda">
+                                    #@e.Id
+                                </button>
+                            </td>
                             <td class="small">@e.DataCriacao.ToString("dd/MM/yy HH:mm")</td>
                             <td class="small">@e.NomeFornecedor</td>
                             <td class="small">@e.NomeLoja</td>
@@ -67,12 +71,13 @@
                             <td class="text-center">
                                 @if (e.Estado == "Pendente")
                                 {
-                                    <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
-                                        <i class="bi bi-box-arrow-in-down"></i>
-                                    </button>
-                                    @if (Session.IsGestorCadeia)
+                                    @* Apenas o Gerente da loja onde a encomenda foi feita pode rececionar/cancelar *@
+                                    @if (Session.IsGerenteLoja && Session.LojaId == e.LojaId)
                                     {
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirCancelar(e)" title="Cancelar">
+                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirRececao(e)" title="Recepcionar">
+                                            <i class="bi bi-box-arrow-in-down"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirCancelar(e)" title="Cancelar encomenda">
                                             <i class="bi bi-x-circle"></i>
                                         </button>
                                     }
@@ -178,14 +183,16 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-muted small mb-3">
-                        Confirme as quantidades efectivamente recebidas. O stock será actualizado automaticamente.
+                        Confirme as quantidades efetivamente recebidas. O stock será atualizado automaticamente.
+                        Se o novo lote tiver uma validade diferente, indica-a — a validade do produto será atualizada.
                     </p>
                     <table class="table table-sm table-bordered">
                         <thead class="table-light">
                             <tr>
                                 <th>Produto</th>
-                                <th class="text-center">Qtd Pedida</th>
-                                <th class="text-center">Qtd Recebida</th>
+                                <th class="text-center" style="width:90px">Qtd Pedida</th>
+                                <th class="text-center" style="width:110px">Qtd Recebida</th>
+                                <th class="text-center" style="width:160px">Nova validade <span class="text-muted fw-normal">(opcional)</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -196,9 +203,12 @@
                                     <td class="text-center text-muted small">@linha.QuantidadePedida</td>
                                     <td class="text-center">
                                         <input type="number" class="form-control form-control-sm text-center"
-                                               style="width:90px;margin:auto"
                                                min="0" step="0.001"
                                                @bind="linha.QuantidadeRecebida" />
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="date" class="form-control form-control-sm"
+                                               @bind="linha.NovaValidade" />
                                     </td>
                                 </tr>
                             }
@@ -215,6 +225,75 @@
                         @if (a_rececionando) { <span class="spinner-border spinner-border-sm me-1"></span> }
                         <i class="bi bi-check-circle me-1"></i>Confirmar Receção
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (modalDetalhes && encomendaDetalhes is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-receipt me-2 text-primary"></i>
+                        Encomenda #@encomendaDetalhes.Id
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="() => modalDetalhes = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Fornecedor</div>
+                            <div class="fw-medium">@encomendaDetalhes.NomeFornecedor</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Loja</div>
+                            <div class="fw-medium">@encomendaDetalhes.NomeLoja</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Data de criação</div>
+                            <div>@encomendaDetalhes.DataCriacao.ToString("dd/MM/yyyy HH:mm")</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Data de receção</div>
+                            <div>@(encomendaDetalhes.DataRececao?.ToString("dd/MM/yyyy HH:mm") ?? "—")</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Estado</div>
+                            <span class="badge badge-@encomendaDetalhes.Estado.ToLower() px-2 py-1">@encomendaDetalhes.Estado</span>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Nº de linhas</div>
+                            <div>@encomendaDetalhes.Linhas.Count() produto(s)</div>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-semibold mb-2"><i class="bi bi-box-seam me-1 text-primary"></i>Produtos</h6>
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Produto</th>
+                                <th class="text-center" style="width:140px">Quantidade pedida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in encomendaDetalhes.Linhas)
+                            {
+                                <tr>
+                                    <td class="small">
+                                        @(nomeProdutoCache.TryGetValue(l.ProdutoId, out var n) ? n : $"Produto #{l.ProdutoId}")
+                                    </td>
+                                    <td class="text-center small">@l.QuantidadePedida</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => modalDetalhes = false">Fechar</button>
                 </div>
             </div>
         </div>
@@ -273,7 +352,7 @@
         var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
         todas = lojaId.HasValue
             ? (await OrderSvc.GetByLojaAsync(lojaId.Value)).ToList()
-            : (await OrderSvc.GetPendentesAsync()).ToList();
+            : (await OrderSvc.GetAllAsync()).ToList();
         encomendas = todas;
         fornecedores = (await FornecedorSvc.GetAllAsync()).ToList();
         a_carregar = false;
@@ -372,8 +451,11 @@
         a_rececionando = true;
         try
         {
-            var linhas = rececaoLinhas.Select(l => new RecepcionarLinhaDto(l.ProdutoId, l.QuantidadeRecebida));
-            await OrderSvc.RecepcionarAsync(encomendaARececionar!.Id, linhas);
+            var linhas = rececaoLinhas.Select(l => new RecepcionarLinhaDto(
+                l.ProdutoId,
+                l.QuantidadeRecebida,
+                l.NovaValidade.HasValue ? DateOnly.FromDateTime(l.NovaValidade.Value) : null));
+            await OrderSvc.RecepcionarAsync(encomendaARececionar!.Id, linhas, Session.UserId!);
             modalRececao = false;
             var lojaId = Session.IsGestorCadeia ? (int?)null : Session.LojaId;
             todas = lojaId.HasValue
@@ -393,6 +475,21 @@
     private string motivoCancelamento = "";
     private string? erroCancelamento;
 
+    // Estado do modal de detalhes
+    private bool modalDetalhes;
+    private EncomendaDto? encomendaDetalhes;
+
+    private async Task AbrirDetalhes(EncomendaDto e)
+    {
+        encomendaDetalhes = e;
+        if (!e.Linhas.All(l => nomeProdutoCache.ContainsKey(l.ProdutoId)))
+        {
+            foreach (var p in await FornecedorSvc.GetProdutosAsync(e.FornecedorId))
+                nomeProdutoCache[p.Id] = p.Nome;
+        }
+        modalDetalhes = true;
+    }
+
     private class LinhaInput { public int ProdutoId { get; set; } public int Quantidade { get; set; } = 1; }
     private class RecLinhaInput
     {
@@ -400,5 +497,6 @@
         public string NomeProduto { get; set; } = "";
         public decimal QuantidadePedida { get; set; }
         public decimal QuantidadeRecebida { get; set; }
+        public DateTime? NovaValidade { get; set; }
     }
 }

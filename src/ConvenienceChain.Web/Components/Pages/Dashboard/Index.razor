@@ -3,24 +3,27 @@
 @using ConvenienceChain.Core.Interfaces
 @using ConvenienceChain.Web.Services
 @inject IReportService ReportSvc
-@inject IConsolidacaoService ConsSvc
+@inject ISalesService SalesSvc
 @inject SessionService Session
+@inject NavigationManager Nav
 
 <PageTitle>Dashboard – SGCLC</PageTitle>
 
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
-        <p class="text-muted mb-0">@(Session.IsGestorCadeia ? "Visão global da cadeia" : $"Loja: {Session.Nome}")</p>
+        <p class="text-muted mb-0">@(Session.IsGestorCadeia ? "Visão global da cadeia" : $"Loja: {Session.NomeLoja}")</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
         <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>@DateTime.Now.ToString("dd/MM/yyyy")</span>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="Atualizar" disabled="@a_carregar">
+            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+        </button>
         @if (Session.IsGestorCadeia)
         {
-            <button class="btn btn-outline-primary btn-sm" @onclick="ConsolidarAgora" disabled="@a_consolidar">
-                @if (a_consolidar) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                <i class="bi bi-arrow-repeat me-1"></i>Consolidar Agora
-            </button>
+            <a class="btn btn-outline-primary btn-sm" href="/consolidacao">
+                <i class="bi bi-arrow-repeat me-1"></i>Ir para Consolidação
+            </a>
         }
     </div>
 </div>
@@ -85,13 +88,14 @@ else if (Session.IsGestorCadeia && dashboards is not null)
                     @foreach (var d in dashboards.OrderByDescending(x => x.TotalVendasHoje))
                     {
                         var pct = maxVenda > 0 ? (d.TotalVendasHoje / maxVenda * 100) : 0;
+                        var pctCss = pct.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
                         <div class="mb-2">
                             <div class="d-flex justify-content-between small mb-1">
                                 <span>@d.NomeLoja</span>
                                 <strong>€@d.TotalVendasHoje.ToString("N2")</strong>
                             </div>
                             <div class="progress" style="height:10px;border-radius:99px">
-                                <div class="progress-bar bg-primary" style="width:@pct%"></div>
+                                <div class="progress-bar bg-primary" style="width:@pctCss%"></div>
                             </div>
                         </div>
                     }
@@ -120,7 +124,7 @@ else if (Session.IsGestorCadeia && dashboards is not null)
         </div>
     </div>
 }
-else if (!Session.IsGestorCadeia && dashboardLoja is not null)
+else if (Session.IsGerenteLoja && dashboardLoja is not null)
 {
     <!-- Dashboard de Loja -->
     <div class="row g-3 mb-4">
@@ -178,27 +182,138 @@ else if (!Session.IsGestorCadeia && dashboardLoja is not null)
         </div>
     </div>
 }
+else if (Session.IsFuncionario && dashboardLoja is not null)
+{
+    <!-- Dashboard de Funcionário (foco POS) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-person-badge me-1"></i>As Minhas Vendas</div>
+                    <div class="kpi-value text-success">€@minhasVendasTotal.ToString("N2")</div>
+                    <div class="text-muted small">Hoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-receipt me-1"></i>As Minhas Transações</div>
+                    <div class="kpi-value text-primary">@minhasVendasCount</div>
+                    <div class="text-muted small">Hoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-shop me-1"></i>Vendas da Loja</div>
+                    <div class="kpi-value text-success">€@dashboardLoja.TotalVendasHoje.ToString("N2")</div>
+                    <div class="text-muted small">Total hoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="kpi-label"><i class="bi bi-receipt-cutoff me-1"></i>Transações da Loja</div>
+                    <div class="kpi-value text-primary">@dashboardLoja.NrTransacoesHoje</div>
+                    <div class="text-muted small">Total hoje</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA POS -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div>
+                <h5 class="fw-semibold mb-1"><i class="bi bi-cart-plus me-2 text-primary"></i>Pronto para registar vendas?</h5>
+                <p class="text-muted mb-0 small">Abre o ponto de venda para começar um novo atendimento.</p>
+            </div>
+            <button class="btn btn-primary btn-lg" @onclick='() => Nav.NavigateTo("/pos")'>
+                <i class="bi bi-cash-coin me-2"></i>Abrir POS
+            </button>
+        </div>
+    </div>
+
+    <!-- Últimas vendas do funcionário hoje -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-clock-history me-2 text-primary"></i>As Minhas Últimas Vendas (Hoje)</h6>
+            @if (minhasVendasRecentes.Count == 0)
+            {
+                <p class="text-muted small mb-0">Ainda não registaste vendas hoje.</p>
+            }
+            else
+            {
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Hora</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Itens</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in minhasVendasRecentes)
+                        {
+                            <tr>
+                                <td>@v.DataHora.ToString("HH:mm")</td>
+                                <td class="text-end">€@v.Total.ToString("N2")</td>
+                                <td class="text-end">@v.Linhas.Count()</td>
+                                <td>
+                                    <span class="badge @(v.Estado == "Concluida" ? "bg-success" : v.Estado == "Cancelada" ? "bg-danger" : "bg-warning")">
+                                        @v.Estado
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+}
 
 @code {
     private IEnumerable<DashboardLojaDto>? dashboards;
     private DashboardLojaDto? dashboardLoja;
     private bool a_carregar = true;
-    private bool a_consolidar;
 
-    protected override async Task OnInitializedAsync()
+    private decimal minhasVendasTotal;
+    private int minhasVendasCount;
+    private List<VendaDto> minhasVendasRecentes = new();
+
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task Atualizar() => await CarregarAsync();
+
+    private async Task CarregarAsync()
     {
+        a_carregar = true;
         if (Session.IsGestorCadeia)
+        {
             dashboards = await ReportSvc.GetDashboardCentralAsync();
+        }
         else if (Session.LojaId.HasValue)
+        {
             dashboardLoja = await ReportSvc.GetDashboardLojaAsync(Session.LojaId.Value);
-        a_carregar = false;
-    }
 
-    private async Task ConsolidarAgora()
-    {
-        a_consolidar = true;
-        await ConsSvc.ConsolidarTodasAsync(DateOnly.FromDateTime(DateTime.Today));
-        dashboards = await ReportSvc.GetDashboardCentralAsync();
-        a_consolidar = false;
+            if (Session.IsFuncionario)
+            {
+                var hoje = DateTime.Now.Date;
+                var vendasHoje = await SalesSvc.GetByLojaAsync(Session.LojaId.Value, hoje, hoje.AddDays(1).AddTicks(-1));
+                var minhas = vendasHoje
+                    .Where(v => v.NomeFuncionario == Session.Nome)
+                    .OrderByDescending(v => v.DataHora)
+                    .ToList();
+                minhasVendasRecentes = minhas.Take(10).ToList();
+                minhasVendasCount = minhas.Count(v => v.Estado == "Concluida");
+                minhasVendasTotal = minhas.Where(v => v.Estado == "Concluida").Sum(v => v.Total);
+            }
+        }
+        a_carregar = false;
     }
 }

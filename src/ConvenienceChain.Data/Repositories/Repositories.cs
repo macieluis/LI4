@@ -166,6 +166,10 @@ public class EncomendaRepository : IEncomendaRepository
     private readonly AppDbContext _db;
     public EncomendaRepository(AppDbContext db) => _db = db;
 
+    public async Task<IEnumerable<Encomenda>> GetAllAsync() =>
+        await _db.Encomendas.Include(e => e.Loja).Include(e => e.Fornecedor)
+            .Include(e => e.Linhas).ThenInclude(l => l.Produto)
+            .OrderByDescending(e => e.DataCriacao).ToListAsync();
     public async Task<IEnumerable<Encomenda>> GetByLojaAsync(int lojaId) =>
         await _db.Encomendas.Include(e => e.Fornecedor).Include(e => e.Linhas).ThenInclude(l => l.Produto)
             .Where(e => e.LojaId == lojaId).OrderByDescending(e => e.DataCriacao).ToListAsync();
@@ -231,7 +235,7 @@ public class UtilizadorRepository : IUtilizadorRepository
     public async Task<Utilizador?> GetByIdAsync(string id) =>
         await _db.Utilizadores.Include(u => u.Loja).FirstOrDefaultAsync(u => u.Id == id);
     public async Task<Utilizador?> GetByEmailAsync(string email) =>
-        await _db.Utilizadores.FirstOrDefaultAsync(u => u.Email == email);
+        await _db.Utilizadores.Include(u => u.Loja).FirstOrDefaultAsync(u => u.Email == email);
     public async Task<Utilizador> AddAsync(Utilizador u)
     {
         _db.Utilizadores.Add(u);

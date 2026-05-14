@@ -46,11 +46,12 @@ public interface ISalesService
 
 public interface IOrderService
 {
+    Task<IEnumerable<EncomendaDto>> GetAllAsync();
     Task<IEnumerable<EncomendaDto>> GetByLojaAsync(int lojaId);
     Task<IEnumerable<EncomendaDto>> GetPendentesAsync();
     Task<EncomendaDto?> GetByIdAsync(int id);
     Task<EncomendaDto> CreateAsync(CreateEncomendaDto dto);
-    Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas);
+    Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas, string userId);
     Task CancelAsync(int encomendaId, string motivo, string userId);
 }
 

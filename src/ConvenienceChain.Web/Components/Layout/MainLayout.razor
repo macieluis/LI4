@@ -14,7 +14,7 @@ else
         <div class="brand mb-4">
             <i class="bi bi-shop-window fs-4 me-2"></i>
             <span class="fw-bold">SGCLC</span>
-            <div class="text-muted small">QuickMart</div>
+            <div class="small" style="color:rgba(255,255,255,.65)">QuickMart</div>
         </div>
 
         <ul class="nav nav-pills flex-column mb-auto gap-1">
@@ -65,11 +65,13 @@ else
 
         <div class="border-top pt-3 mt-3">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <div class="avatar-circle"><i class="bi bi-person-fill"></i></div>
-                <div class="flex-grow-1">
-                    <div class="small fw-semibold">@Session.Nome</div>
-                    <div class="text-muted" style="font-size:.75rem">@Session.Papel</div>
-                </div>
+                <NavLink href="/perfil" class="d-flex align-items-center gap-2 flex-grow-1 text-decoration-none text-white user-link">
+                    <div class="avatar-circle"><i class="bi bi-person-fill"></i></div>
+                    <div class="flex-grow-1">
+                        <div class="small fw-semibold">@Session.Nome</div>
+                        <div style="font-size:.75rem;color:rgba(255,255,255,.65)">@Session.Papel</div>
+                    </div>
+                </NavLink>
                 <ConvenienceChain.Web.Components.Shared.NotificacoesDropdown />
             </div>
             <button class="btn btn-sm btn-outline-light w-100" @onclick="Logout">

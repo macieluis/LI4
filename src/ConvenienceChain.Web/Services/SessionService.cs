@@ -14,6 +14,7 @@ public class SessionService
     public string? Email { get; private set; }
     public PapelUtilizador Papel { get; private set; }
     public int? LojaId { get; private set; }
+    public string? NomeLoja { get; private set; }
 
     public bool IsGestorCadeia => Papel == PapelUtilizador.GestorCadeia;
     public bool IsGerenteLoja => Papel == PapelUtilizador.GerenteLoja;
@@ -27,6 +28,7 @@ public class SessionService
         Email = result.Email;
         Papel = result.Papel;
         LojaId = result.LojaId;
+        NomeLoja = result.NomeLoja;
         NotifyStateChanged();
     }
 
@@ -38,6 +40,7 @@ public class SessionService
         Email = null;
         Papel = default;
         LojaId = null;
+        NomeLoja = null;
         NotifyStateChanged();
     }
 

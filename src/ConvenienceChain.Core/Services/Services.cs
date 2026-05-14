@@ -41,7 +41,7 @@ public class AuthService : IAuthService
         var user = await _repo.GetByEmailAsync(email);
         if (user is null || !user.Ativo) return null;
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash)) return null;
-        return new LoginResultDto(user.Id, user.Nome, user.Email, user.Papel, user.LojaId);
+        return new LoginResultDto(user.Id, user.Nome, user.Email, user.Papel, user.LojaId, user.Loja?.Nome);
     }
 
     public async Task<bool> ChangePasswordAsync(string userId, string novaSenha)
@@ -407,12 +407,18 @@ public class OrderService : IOrderService
     private readonly IStockRepository _stockRepo;
     private readonly INotificationService _notifSvc;
     private readonly IUtilizadorRepository _userRepo;
+    private readonly IProdutoRepository _produtoRepo;
 
     public OrderService(IEncomendaRepository repo, IStockRepository stockRepo,
-        INotificationService notifSvc, IUtilizadorRepository userRepo)
+        INotificationService notifSvc, IUtilizadorRepository userRepo,
+        IProdutoRepository produtoRepo)
     {
-        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc; _userRepo = userRepo;
+        _repo = repo; _stockRepo = stockRepo; _notifSvc = notifSvc;
+        _userRepo = userRepo; _produtoRepo = produtoRepo;
     }
+
+    public async Task<IEnumerable<EncomendaDto>> GetAllAsync() =>
+        (await _repo.GetAllAsync()).Select(MapToDto);
 
     public async Task<IEnumerable<EncomendaDto>> GetByLojaAsync(int lojaId) =>
         (await _repo.GetByLojaAsync(lojaId)).Select(MapToDto);
@@ -446,9 +452,28 @@ public class OrderService : IOrderService
         return MapToDto(result!);
     }
 
-    public async Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas)
+    public async Task<EncomendaDto> RecepcionarAsync(int encomendaId, IEnumerable<RecepcionarLinhaDto> linhas, string userId)
     {
-        var enc = await _repo.GetByIdAsync(encomendaId) ?? throw new KeyNotFoundException();
+        var enc = await _repo.GetByIdAsync(encomendaId)
+            ?? throw new KeyNotFoundException($"Encomenda {encomendaId} não encontrada.");
+
+        var user = await _userRepo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("Utilizador não encontrado ou sessão inválida.");
+
+        if (user.Papel != PapelUtilizador.GerenteLoja)
+            throw new UnauthorizedAccessException(
+                "Apenas o Gerente da loja pode rececionar encomendas. " +
+                "O Gestor da Cadeia tem acesso de consulta apenas.");
+
+        if (user.LojaId != enc.LojaId)
+            throw new UnauthorizedAccessException(
+                "O Gerente só pode rececionar encomendas da sua própria loja.");
+
+        if (enc.Estado == EstadoEncomenda.Cancelada)
+            throw new InvalidOperationException("Não é possível rececionar uma encomenda cancelada.");
+        if (enc.Estado == EstadoEncomenda.Rececionada)
+            throw new InvalidOperationException("Esta encomenda já foi rececionada.");
+
         enc.Estado = EstadoEncomenda.Rececionada;
         enc.DataRececao = DateTime.Now;
 
@@ -464,6 +489,17 @@ public class OrderService : IOrderService
                 stock.Quantidade += linha.QuantidadeRecebida;
                 await _stockRepo.UpdateAsync(stock);
             }
+
+            // Atualizar validade do produto se o gerente indicou uma nova
+            if (linha.NovaValidade.HasValue)
+            {
+                var produto = await _produtoRepo.GetByIdAsync(linha.ProdutoId);
+                if (produto is not null)
+                {
+                    produto.DataValidade = linha.NovaValidade;
+                    await _produtoRepo.UpdateAsync(produto);
+                }
+            }
         }
 
         await _repo.UpdateAsync(enc);
@@ -472,12 +508,24 @@ public class OrderService : IOrderService
 
     public async Task CancelAsync(int encomendaId, string motivo, string userId)
     {
-        await RbacGuard.EnsureGestorAsync(_userRepo, userId);
         if (string.IsNullOrWhiteSpace(motivo))
             throw new ArgumentException("O motivo do cancelamento é obrigatório.", nameof(motivo));
 
         var enc = await _repo.GetByIdAsync(encomendaId)
             ?? throw new KeyNotFoundException($"Encomenda {encomendaId} não encontrada.");
+
+        var user = await _userRepo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("Utilizador não encontrado ou sessão inválida.");
+
+        if (user.Papel != PapelUtilizador.GerenteLoja)
+            throw new UnauthorizedAccessException(
+                "Apenas o Gerente da loja pode cancelar encomendas. " +
+                "O Gestor da Cadeia tem acesso de consulta apenas.");
+
+        if (user.LojaId != enc.LojaId)
+            throw new UnauthorizedAccessException(
+                "O Gerente só pode cancelar encomendas da sua própria loja.");
+
         if (enc.Estado == EstadoEncomenda.Rececionada)
             throw new InvalidOperationException("Não é possível cancelar uma encomenda já rececionada.");
         if (enc.Estado == EstadoEncomenda.Cancelada)
