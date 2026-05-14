@@ -58,6 +58,15 @@ O levantamento de requisitos foi realizado com recurso a várias técnicas compl
 | **RF03** | O Gestor da Cadeia deve poder criar, editar, desativar e eliminar contas de utilizador e atribuir papéis e lojas | R1 | Essencial | Alta | Aprovado |
 | **RF04** | O sistema deve suportar recuperação de password por email com link temporário (válido 1 hora) | R3 | Importante | Média | Aprovado |
 | **RF05** | Após 5 tentativas de login falhadas, a conta deve ser bloqueada automaticamente por 15 minutos | R1, R4 | Importante | Média | Aprovado |
+| **RF43** | O sistema deve permitir ao utilizador autenticado terminar a sua sessão explicitamente através de um botão de logout | R1 | Essencial | Alta | Aprovado |
+
+---
+
+### 3.1.1 Gestão de Lojas
+
+| ID | Descrição | Fonte | Relevância | Prioridade | Estado |
+|---|---|---|---|---|---|
+| **RF44** | O Gestor da Cadeia deve poder criar, editar e desativar lojas da cadeia, com os dados: nome, morada e contacto | R1 | Essencial | Alta | Aprovado |
 
 ---
 
@@ -69,7 +78,7 @@ O levantamento de requisitos foi realizado com recurso a várias técnicas compl
 | **RF07** | O sistema deve suportar organização de produtos em categorias e subcategorias hierárquicas | R1 | Essencial | Alta | Aprovado |
 | **RF08** | O sistema deve permitir que o preço de venda de um produto seja diferente por loja (sobrepondo o preço base central) | R2 | Importante | Média | Aprovado |
 | **RF09** | O sistema deve disponibilizar um catálogo de produtos pesquisável por nome, código ou categoria, de forma insensível a maiúsculas/minúsculas e acentos | R2, R3 | Essencial | Alta | Implementado |
-| **RF10** | O sistema deve alert ar o utilizador em caso de código de produto duplicado ao criar um novo produto | R4 | Importante | Média | Aprovado |
+| **RF10** | O sistema deve alertar o utilizador em caso de código de produto duplicado ao criar um novo produto | R4 | Importante | Média | Aprovado |
 
 ---
 
@@ -83,6 +92,7 @@ O levantamento de requisitos foi realizado com recurso a várias técnicas compl
 | **RF14** | O Gestor da Cadeia deve visualizar alertas de stock agregados de todas as lojas no dashboard central | R1 | Importante | Alta | Aprovado |
 | **RF15** | O Gerente de Loja deve poder registar ajustes manuais de stock (quebras, devoluções, inventário) com motivo obrigatório, registados em auditoria | R2, R4 | Essencial | Alta | Aprovado |
 | **RF16** | O sistema deve permitir a exportação da listagem de stock em formato CSV | R2 | Desejável | Baixa | Aprovado |
+| **RF45** | O sistema deve enviar uma notificação (email ou alerta in-app) ao Gerente de Loja quando o stock de um produto atinge ou desce abaixo do stock mínimo definido | R2, R4 | Importante | Média | Aprovado |
 
 ---
 
@@ -166,6 +176,9 @@ O levantamento de requisitos foi realizado com recurso a várias técnicas compl
 | **RNF13** | Manutenibilidade | O código deve incluir comentários XML nos métodos públicos e interfaces, e deve existir documentação de API interna | R4 | Importante | Média | Aprovado |
 | **RNF14** | Portabilidade | O servidor deve poder ser executado em Windows Server ou Linux | R4 | Importante | Média | Aprovado |
 | **RNF15** | Compatibilidade | A aplicação deve ser compatível com Chrome, Firefox, Edge e Safari (versões dos últimos 2 anos) | R1, R5 | Importante | Média | Aprovado |
+| **RNF16** | Escalabilidade | O sistema deve suportar a adição de novas lojas sem alterações à arquitetura existente, até um máximo de 20 lojas | R1, R5 | Importante | Média | Aprovado |
+| **RNF17** | Fiabilidade | O sistema deve realizar backups automáticos diários da base de dados, com retenção mínima de 30 dias (RPO ≤ 24h, RTO ≤ 4h) | R4 | Essencial | Alta | Aprovado |
+| **RNF18** | Conformidade | O sistema deve cumprir o RGPD no que respeita ao armazenamento e tratamento de dados pessoais (ex: NIFs de clientes), nomeadamente em termos de retenção de dados e acesso controlado | R1, R4 | Essencial | Alta | Aprovado |
 
 ---
 
@@ -173,12 +186,13 @@ O levantamento de requisitos foi realizado com recurso a várias técnicas compl
 
 | RF | Caso(s) de Uso |
 |---|---|
-| RF01, RF02, RF04, RF05 | UC01 – Login; UC02 – Recuperar Password |
+| RF01, RF02, RF04, RF05, RF43 | UC01 – Login; UC02 – Recuperar Password |
 | RF03 | UC03 – Gerir Utilizadores |
+| RF44 | UC03.1 – Gerir Lojas |
 | RF06, RF09, RF10 | UC04 – Gerir Produtos; UC05 – Gerir Categorias |
 | RF07 | UC05 – Gerir Categorias |
 | RF08 | UC06 – Definir Preço por Loja |
-| RF11, RF12, RF16 | UC07 – Visualizar Stock |
+| RF11, RF12, RF16, RF45 | UC07 – Visualizar Stock |
 | RF13 | UC08 – Definir Stock Mínimo |
 | RF14, RF15 | UC09 – Ajuste Manual de Stock |
 | RF17, RF20 | UC10 – Registar Venda |
